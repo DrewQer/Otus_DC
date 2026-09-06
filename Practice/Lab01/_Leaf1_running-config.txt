@@ -1,0 +1,56 @@
+! Command: show running-config
+! device: L1 (vEOS-lab, EOS-4.29.2F)
+!
+! boot system flash:/vEOS-lab.swi
+!
+no aaa root
+!
+transceiver qsfp default-mode 4x10G
+!
+service routing protocols model ribd
+!
+logging synchronous level all
+!
+hostname L1
+!
+spanning-tree mode none
+!
+interface Ethernet1
+   description TO_S1
+   no switchport
+   ip address 10.1.1.2/30
+!
+interface Ethernet2
+   description TO_S2
+   no switchport
+   ip address 10.1.4.2/30
+!
+interface Ethernet3
+   shutdown
+!
+interface Ethernet4
+   shutdown
+!
+interface Ethernet5
+   shutdown
+!
+interface Ethernet6
+   shutdown
+!
+interface Ethernet7
+   shutdown
+!
+interface Ethernet8
+!
+interface Loopback0
+   ip address 192.168.0.11/32
+!
+interface Loopback1
+   ip address 192.168.100.11/32
+!
+interface Management1
+   shutdown
+!
+ip routing
+!
+end
