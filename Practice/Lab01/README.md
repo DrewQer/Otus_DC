@@ -11,16 +11,16 @@
 
 | Device     | Hostname  | Platform        | Interface Loopback | IP network /32 |
 |------------|-----------|-----------------| -------------------|----------------|
-| Spine1     | S1        | Arista vEOS-lab | Loopback 1         | 192.168.0.1    |
-| Spine1     | S1        | Arista vEOS-lab | Loopback 2         | 192.168.100.1  |
-| Spine2     | S2        | Arista vEOS-lab | Loopback 1         | 192.168.0.2    |
-| Spine2     | S2        | Arista vEOS-lab | Loopback 2         | 192.168.100.2  |
-| Leaf1      | L1        | Arista vEOS-lab | Loopback 1         | 192.168.0.11   |
-| Leaf1      | L1        | Arista vEOS-lab | Loopback 2         | 192.168.100.11 |
-| Leaf2      | L2        | Arista vEOS-lab | Loopback 1         | 192.168.0.12   |
-| Leaf2      | L2        | Arista vEOS-lab | Loopback 2         | 192.168.100.12 |
-| Leaf3      | L3        | Arista vEOS-lab | Loopback 1         | 192.168.0.13   |
-| Leaf3      | L3        | Arista vEOS-lab | Loopback 2         | 192.168.100.13 |
+| Spine1     | S1        | Arista vEOS-lab | Loopback 0         | 192.168.0.1    |
+| Spine1     | S1        | Arista vEOS-lab | Loopback 1         | 192.168.100.1  |
+| Spine2     | S2        | Arista vEOS-lab | Loopback 0         | 192.168.0.2    |
+| Spine2     | S2        | Arista vEOS-lab | Loopback 1         | 192.168.100.2  |
+| Leaf1      | L1        | Arista vEOS-lab | Loopback 0         | 192.168.0.11   |
+| Leaf1      | L1        | Arista vEOS-lab | Loopback 1         | 192.168.100.11 |
+| Leaf2      | L2        | Arista vEOS-lab | Loopback 0         | 192.168.0.12   |
+| Leaf2      | L2        | Arista vEOS-lab | Loopback 1         | 192.168.100.12 |
+| Leaf3      | L3        | Arista vEOS-lab | Loopback 0         | 192.168.0.13   |
+| Leaf3      | L3        | Arista vEOS-lab | Loopback 1         | 192.168.100.13 |
 
 ## 3. Адресный план (Underlay)
 
