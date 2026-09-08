@@ -1,0 +1,81 @@
+! Command: show running-config
+! device: L1 (vEOS-lab, EOS-4.29.2F)
+!
+! boot system flash:/vEOS-lab.swi
+!
+no aaa root
+!
+transceiver qsfp default-mode 4x10G
+!
+service routing protocols model ribd
+!
+logging console informational
+logging synchronous level all
+!
+hostname L1
+!
+spanning-tree mode none
+!
+interface Ethernet1
+   description P2P_to_Spine1_Eth1
+   mtu 9214
+   no switchport
+   ip address 10.1.1.2/30
+   ip ospf network point-to-point
+   ip ospf authentication message-digest
+   ip ospf area 0.0.0.0
+   ip ospf message-digest-key 1 md5 7 qwt910kQVTE=
+!
+interface Ethernet2
+   description P2P_to_Spine2_Eth1
+   mtu 9214
+   no switchport
+   ip address 10.1.4.2/30
+   ip ospf network point-to-point
+   ip ospf authentication message-digest
+   ip ospf area 0.0.0.0
+   ip ospf message-digest-key 1 md5 7 nm4Bgfz7cUc=
+!
+interface Ethernet3
+   shutdown
+!
+interface Ethernet4
+   shutdown
+!
+interface Ethernet5
+   shutdown
+!
+interface Ethernet6
+   shutdown
+!
+interface Ethernet7
+   shutdown
+!
+interface Ethernet8
+   description To_Client1
+   mtu 9214
+!
+interface Loopback0
+   ip address 192.168.0.11/32
+   ip ospf area 0.0.0.0
+!
+interface Loopback1
+   ip address 192.168.100.11/32
+!
+interface Management1
+   shutdown
+!
+ip routing
+!
+router ospf 1
+   router-id 192.168.0.11
+   bfd default
+   passive-interface default
+   no passive-interface Ethernet1
+   no passive-interface Ethernet2
+   no passive-interface Loopback0
+   max-lsa 12000
+   log-adjacency-changes detail
+   maximum-paths 4
+!
+end

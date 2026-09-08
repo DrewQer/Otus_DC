@@ -101,6 +101,8 @@ router ospf 1
 ```
 </details>
 
+[Spine1 Running-conifg ](_Spine1_running-config.txt)
+
 <details>
 <summary> Spine2
 </summary>
@@ -166,6 +168,8 @@ router ospf 1
 ```
 </details>
 
+[Spine2 Running-conifg ](_Spine2_running-config.txt)
+
 <details>
 <summary> Leaf1
 </summary>
@@ -223,6 +227,8 @@ router ospf 1
 ```
 </details>
 
+[Leaf1 Running-conifg ](_Leaf1_running-config.txt)
+
 <details>
 <summary> Leaf2
 </summary>
@@ -279,6 +285,8 @@ router ospf 1
    exit
 ```
 </details>
+
+[Leaf2 Running-conifg ](_Leaf2_running-config.txt)
 
 <details>
 <summary> Leaf3
@@ -341,6 +349,8 @@ router ospf 1
    exit
 ```
 </details>
+
+[Leaf3 Running-conifg ](_Leaf3_running-config.txt)
 
 <details>
 <summary> Monitoring/Debug
