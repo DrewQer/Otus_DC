@@ -1,4 +1,4 @@
-# Lab03.Построение Underlay сети (eBGP)
+# Lab05.Построение Underlay сети (eBGP)
 > «eBGP — единственный протокол, где фраза “Я тебе не верю, покажи документы” является базовой настройкой по умолчанию».»
 
 ## 1. Цель работы
@@ -51,7 +51,7 @@
 | Leaf3      | Ethernet2    |  10.1.6.2  |  10.1.6.0   |  10.1.6.1  | Ethernet3    | Spine2     |
 
 ### IPv6
-| Device1    | Interface1   | Device1 IP      | Network /127   | Device2 IP      | Interface2   | Device2    |
+| Device1    | Interface1   | Device1 IP      | Network /126   | Device2 IP      | Interface2   | Device2    |
 |------------|--------------|-----------------|--------------- |-----------------|--------------|------------|
 | Leaf1      | Ethernet1    | 2001:db8:1:1::2 | 2001:db8:1:1:: | 2001:db8:1:1::1 | Ethernet1    | Spine1     |
 | Leaf1      | Ethernet2    | 2001:db8:1:4::2 | 2001:db8:1:4:: | 2001:db8:1:4::1 | Ethernet1    | Spine2     |
