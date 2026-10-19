@@ -1,0 +1,8 @@
+hostname Host-EU
+!
+service routing protocols model multi-agent
+ip routing
+!
+logging buffered 64000 informational
+logging console informational
+logging synchronous level all

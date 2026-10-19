@@ -1,0 +1,58 @@
+hostname Leaf1-RU
+!
+service routing protocols model multi-agent
+ip routing
+ipv6 unicast-routing
+ip routing ipv6 interfaces
+!
+logging buffered 64000 informational
+logging console informational
+logging synchronous level all
+!
+interface Loopback0
+   description ROUTER-ID_EVPN
+   ip address 192.168.0.11/32
+!
+interface Loopback1
+   description VTEP
+   ip address 192.168.1.11/32
+!
+interface Ethernet1
+   description TO_Spine1-RU_Eth1
+   no switchport
+   mtu 9000
+   ipv6 enable
+   bfd interval 300 min-rx 300 multiplier 3
+!
+interface Ethernet2
+   description TO_Spine2-RU_Eth1
+   no switchport
+   mtu 9000
+   ipv6 enable
+   bfd interval 300 min-rx 300 multiplier 3
+!
+ip prefix-list PL-LOOPBACKS seq 10 permit 192.168.0.0/24 le 32
+ip prefix-list PL-LOOPBACKS seq 20 permit 192.168.1.0/24 le 32
+!
+route-map RM-CONN-TO-BGP permit 10
+   match ip address prefix-list PL-LOOPBACKS
+   set origin igp
+!
+router bgp 65111
+   router-id 192.168.0.11
+   no bgp default ipv4-unicast
+   bgp log-neighbor-changes
+   distance bgp 20 200 200
+   timers bgp 3 9
+   maximum-paths 4 ecmp 4
+   neighbor SPINE peer group
+   neighbor SPINE remote-as 65101
+   neighbor SPINE bfd
+   neighbor SPINE maximum-routes 100
+   neighbor interface Et1 peer-group SPINE remote-as 65101
+   neighbor interface Et2 peer-group SPINE remote-as 65101
+   !
+   address-family ipv4
+      neighbor SPINE activate
+      neighbor SPINE next-hop address-family ipv6 originate
+      redistribute connected route-map RM-CONN-TO-BGP

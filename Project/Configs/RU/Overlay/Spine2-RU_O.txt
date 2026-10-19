@@ -1,0 +1,18 @@
+router bfd
+   multihop interval 300 min-rx 300 multiplier 3
+!
+router bgp 65101
+   neighbor EVPN-LEAF peer group
+   neighbor EVPN-LEAF update-source Loopback0
+   neighbor EVPN-LEAF ebgp-multihop 3
+   neighbor EVPN-LEAF next-hop-unchanged
+   neighbor EVPN-LEAF send-community extended
+   neighbor EVPN-LEAF bfd
+   neighbor EVPN-LEAF maximum-routes 100000 warning-only
+   neighbor 192.168.0.11 peer group EVPN-LEAF
+   neighbor 192.168.0.11 remote-as 65111
+   neighbor 192.168.0.12 peer group EVPN-LEAF
+   neighbor 192.168.0.12 remote-as 65112
+   !
+   address-family evpn
+      neighbor EVPN-LEAF activate

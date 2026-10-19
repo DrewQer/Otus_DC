@@ -1,0 +1,79 @@
+hostname ISP1-EU
+!
+service routing protocols model multi-agent
+ip routing
+!
+logging buffered 64000 informational
+logging console informational
+logging synchronous level all
+!
+interface Ethernet1
+   description TO_Leaf1-EU_Eth7
+   no switchport
+   ip address 100.64.11.0/31
+   bfd interval 300 min-rx 300 multiplier 3
+!
+interface Ethernet2
+   description TO_Leaf2-EU_Eth7
+   no switchport
+   ip address 100.64.11.2/31
+   bfd interval 300 min-rx 300 multiplier 3
+!
+interface Ethernet3
+   description TO_ISP2-EU_Eth3
+   no switchport
+   ip address 192.0.2.6/31
+   bfd interval 300 min-rx 300 multiplier 3
+!
+interface Ethernet4
+   description TO_ISP1-RU_Eth4
+   no switchport
+   ip address 192.0.2.1/31
+   bfd interval 300 min-rx 300 multiplier 3
+!
+interface Ethernet8
+   description TO_Client-EU_e0
+   no switchport
+   ip address 203.0.113.1/24
+!
+ip prefix-list PL-FROM-LEAF seq 10 permit 10.0.166.0/24
+ip prefix-list PL-FROM-LEAF seq 20 permit 10.0.100.100/32
+ip prefix-list PL-FROM-LEAF seq 30 permit 10.0.100.2/32
+ip prefix-list PL-TO-LEAF seq 10 permit 10.0.66.0/24
+ip prefix-list PL-TO-LEAF seq 20 permit 10.0.100.1/32
+!
+route-map RM-FROM-LEAF permit 10
+   match ip address prefix-list PL-FROM-LEAF
+route-map RM-TO-LEAF permit 10
+   match ip address prefix-list PL-TO-LEAF
+route-map RM-DEFAULT-ORIGIN permit 10
+   set origin igp
+!
+router bgp 65521
+   router-id 192.0.2.1
+   no bgp default ipv4-unicast
+   bgp log-neighbor-changes
+   distance bgp 20 200 200
+   timers bgp 3 9
+   maximum-paths 4 ecmp 4
+   neighbor LEAF peer group
+   neighbor LEAF remote-as 65200
+   neighbor LEAF bfd
+   neighbor LEAF maximum-routes 100
+   neighbor LEAF default-originate route-map RM-DEFAULT-ORIGIN
+   neighbor RING peer group
+   neighbor RING bfd
+   neighbor RING maximum-routes 1000
+   neighbor 100.64.11.1 peer group LEAF
+   neighbor 100.64.11.3 peer group LEAF
+   neighbor 192.0.2.7 peer group RING
+   neighbor 192.0.2.7 remote-as 65522
+   neighbor 192.0.2.0 peer group RING
+   neighbor 192.0.2.0 remote-as 65511
+   !
+   address-family ipv4
+      neighbor LEAF activate
+      neighbor LEAF route-map RM-FROM-LEAF in
+      neighbor LEAF route-map RM-TO-LEAF out
+      neighbor RING activate
+      network 203.0.113.0/24

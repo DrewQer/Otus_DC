@@ -1,0 +1,56 @@
+hostname Spine1-EU
+!
+service routing protocols model multi-agent
+ip routing
+ipv6 unicast-routing
+ip routing ipv6 interfaces
+!
+logging buffered 64000 informational
+logging console informational
+logging synchronous level all
+!
+interface Loopback0
+   description ROUTER-ID
+   ip address 192.168.10.1/32
+!
+interface Loopback1
+   description RESERVE_NOT_ADVERTISED
+   ip address 192.168.11.1/32
+!
+interface Ethernet1
+   description TO_Leaf1-EU_Eth1
+   no switchport
+   mtu 9000
+   ipv6 enable
+   bfd interval 300 min-rx 300 multiplier 3
+!
+interface Ethernet2
+   description TO_Leaf2-EU_Eth1
+   no switchport
+   mtu 9000
+   ipv6 enable
+   bfd interval 300 min-rx 300 multiplier 3
+!
+ip prefix-list PL-LOOPBACKS seq 10 permit 192.168.10.0/24 le 32
+!
+route-map RM-CONN-TO-BGP permit 10
+   match ip address prefix-list PL-LOOPBACKS
+   set origin igp
+!
+router bgp 65201
+   router-id 192.168.10.1
+   no bgp default ipv4-unicast
+   bgp log-neighbor-changes
+   distance bgp 20 200 200
+   timers bgp 3 9
+   maximum-paths 4 ecmp 4
+   neighbor LEAF peer group
+   neighbor LEAF bfd
+   neighbor LEAF maximum-routes 100
+   neighbor interface Et1 peer-group LEAF remote-as 65211
+   neighbor interface Et2 peer-group LEAF remote-as 65212
+   !
+   address-family ipv4
+      neighbor LEAF activate
+      neighbor LEAF next-hop address-family ipv6 originate
+      redistribute connected route-map RM-CONN-TO-BGP

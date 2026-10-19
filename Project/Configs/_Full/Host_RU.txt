@@ -1,0 +1,126 @@
+! Command: show running-config
+! device: Host-RU (vEOS-lab, EOS-4.29.2F)
+!
+! boot system flash:/vEOS-lab.swi
+!
+no aaa root
+!
+transceiver qsfp default-mode 4x10G
+!
+service routing protocols model multi-agent
+!
+logging buffered 64000 informational
+logging console informational
+logging synchronous level all
+!
+hostname Host-RU
+!
+spanning-tree mode rapid-pvst
+no spanning-tree vlan-id 1-665,667-776,778-4094
+!
+vlan 666
+   name GAME
+!
+vlan 777
+   name TEST
+!
+vrf instance GAME
+!
+vrf instance TEST
+!
+interface Port-Channel1
+   description ESI_UPLINK
+   switchport trunk allowed vlan 666,777
+   switchport mode trunk
+!
+interface Ethernet1
+   description TO_Leaf1-RU_Eth3
+   channel-group 1 mode active
+!
+interface Ethernet2
+   description TO_Leaf2-RU_Eth3
+   channel-group 1 mode active
+!
+interface Ethernet3
+   no switchport
+!
+interface Ethernet4
+   no switchport
+!
+interface Ethernet5
+   no switchport
+!
+interface Ethernet6
+   no switchport
+!
+interface Ethernet7
+   no switchport
+!
+interface Ethernet8
+   no switchport
+!
+interface Loopback100
+   description VIP_ANYCAST
+   vrf GAME
+   ip address 10.0.100.100/32
+!
+interface Loopback101
+   description VIP_UNICAST_RU
+   vrf GAME
+   ip address 10.0.100.1/32
+!
+interface Management1
+!
+interface Vlan666
+   description GAME
+   vrf GAME
+   ip address 10.0.66.11/24
+   bfd interval 1000 min-rx 1000 multiplier 3
+!
+interface Vlan777
+   description TEST
+   vrf TEST
+   ip address 10.0.77.11/24
+!
+ip routing
+ip routing vrf GAME
+ip routing vrf TEST
+!
+ip prefix-list PL-VIP seq 10 permit 10.0.100.100/32
+ip prefix-list PL-VIP seq 20 permit 10.0.100.1/32
+!
+ip route vrf GAME 0.0.0.0/0 10.0.66.1
+ip route vrf TEST 0.0.0.0/0 10.0.77.1
+!
+route-map RM-DENY-ALL deny 10
+!
+route-map RM-VIP permit 10
+   match ip address prefix-list PL-VIP
+   set origin igp
+!
+router bfd
+   interval 1000 min-rx 1000 multiplier 3 default
+!
+router bgp 65301
+   router-id 10.0.66.11
+   no bgp default ipv4-unicast
+   timers bgp 3 9
+   distance bgp 20 200 200
+   neighbor LEAF peer group
+   neighbor LEAF maximum-routes 10
+   !
+   address-family ipv4
+      neighbor LEAF activate
+      neighbor LEAF route-map RM-DENY-ALL in
+   !
+   vrf GAME
+      router-id 10.0.66.11
+      neighbor 10.0.66.2 peer group LEAF
+      neighbor 10.0.66.2 remote-as 65111
+      neighbor 10.0.66.3 peer group LEAF
+      neighbor 10.0.66.3 remote-as 65112
+      !
+      address-family ipv4
+         redistribute connected route-map RM-VIP
+!
+end

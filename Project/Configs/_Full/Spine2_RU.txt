@@ -1,0 +1,104 @@
+! Command: show running-config
+! device: Spine2-RU (vEOS-lab, EOS-4.29.2F)
+!
+! boot system flash:/vEOS-lab.swi
+!
+no aaa root
+!
+transceiver qsfp default-mode 4x10G
+!
+service routing protocols model multi-agent
+!
+logging buffered 64000 informational
+logging console informational
+logging synchronous level all
+!
+hostname Spine2-RU
+!
+spanning-tree mode none
+!
+interface Ethernet1
+   description TO_Leaf1-RU_Eth2
+   mtu 9000
+   no switchport
+   ipv6 enable
+!
+interface Ethernet2
+   description TO_Leaf2-RU_Eth2
+   mtu 9000
+   no switchport
+   ipv6 enable
+!
+interface Ethernet3
+   no switchport
+!
+interface Ethernet4
+   no switchport
+!
+interface Ethernet5
+   no switchport
+!
+interface Ethernet6
+   no switchport
+!
+interface Ethernet7
+   no switchport
+!
+interface Ethernet8
+   no switchport
+!
+interface Loopback0
+   description ROUTER-ID
+   ip address 192.168.0.2/32
+!
+interface Loopback1
+   description RESERVE_NOT_ADVERTISED
+   ip address 192.168.1.2/32
+!
+interface Management1
+!
+ip routing ipv6 interfaces 
+!
+ip prefix-list PL-LOOPBACKS seq 10 permit 192.168.0.0/24 le 32
+!
+ipv6 unicast-routing
+!
+route-map RM-CONN-TO-BGP permit 10
+   match ip address prefix-list PL-LOOPBACKS
+   set origin igp
+!
+router bfd
+   interval 1000 min-rx 1000 multiplier 3 default
+!
+router bgp 65101
+   router-id 192.168.0.2
+   no bgp default ipv4-unicast
+   timers bgp 3 9
+   distance bgp 20 200 200
+   maximum-paths 4 ecmp 4
+   neighbor EVPN-LEAF peer group
+   neighbor EVPN-LEAF next-hop-unchanged
+   neighbor EVPN-LEAF update-source Loopback0
+   neighbor EVPN-LEAF bfd
+   neighbor EVPN-LEAF ebgp-multihop 3
+   neighbor EVPN-LEAF send-community extended
+   neighbor EVPN-LEAF maximum-routes 100000 warning-only
+   neighbor LEAF peer group
+   neighbor LEAF bfd
+   neighbor LEAF maximum-routes 100
+   neighbor 192.168.0.11 peer group EVPN-LEAF
+   neighbor 192.168.0.11 remote-as 65111
+   neighbor 192.168.0.12 peer group EVPN-LEAF
+   neighbor 192.168.0.12 remote-as 65112
+   neighbor interface Et1 peer-group LEAF remote-as 65111
+   neighbor interface Et2 peer-group LEAF remote-as 65112
+   !
+   address-family evpn
+      neighbor EVPN-LEAF activate
+   !
+   address-family ipv4
+      neighbor LEAF activate
+      neighbor LEAF next-hop address-family ipv6 originate
+      redistribute connected route-map RM-CONN-TO-BGP
+!
+end
