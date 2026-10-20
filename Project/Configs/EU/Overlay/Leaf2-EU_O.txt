@@ -66,6 +66,39 @@ interface Vxlan1
    vxlan vrf GAME vni 10066
    vxlan vrf TEST vni 10077
 !
+ip access-list ACL-TEST-INET-IN
+   10 permit tcp host 100.64.112.0 host 100.64.112.1 eq bgp
+   20 permit tcp host 100.64.112.0 eq bgp host 100.64.112.1
+   30 permit udp host 100.64.112.0 host 100.64.112.1 eq bfd ttl eq 255
+   40 permit icmp host 100.64.112.0 host 100.64.112.1
+   50 deny ip 10.0.0.0/8 any log
+   60 deny ip 100.64.0.0/10 any log
+   70 deny ip 127.0.0.0/8 any log
+   80 deny ip 169.254.0.0/16 any log
+   90 deny ip 172.16.0.0/12 any log
+   100 deny ip 192.168.0.0/16 any log
+   110 deny ip 224.0.0.0/4 any log
+   120 permit tcp 198.51.100.0/24 host 10.0.178.10 eq ssh
+   130 permit tcp 203.0.113.0/24 host 10.0.178.10 eq ssh
+   140 permit icmp 198.51.100.0/24 host 10.0.178.10 echo
+   150 permit icmp 203.0.113.0/24 host 10.0.178.10 echo
+   160 permit icmp 198.51.100.0/24 host 10.0.178.10 echo-reply
+   170 permit icmp 203.0.113.0/24 host 10.0.178.10 echo-reply
+   999 deny ip any any log
+!
+ip access-list ACL-TEST-INET-OUT
+   10 permit tcp host 10.0.178.10 eq ssh any
+   20 permit icmp host 10.0.178.10 any echo-reply
+   30 permit tcp host 100.64.112.1 host 100.64.112.0 eq bgp
+   40 permit tcp host 100.64.112.1 eq bgp host 100.64.112.0
+   50 permit udp host 100.64.112.1 host 100.64.112.0 eq bfd
+   60 permit icmp host 100.64.112.1 host 100.64.112.0
+   999 deny ip any any log
+!
+interface Ethernet5
+   ip access-group ACL-TEST-INET-IN in
+   ip access-group ACL-TEST-INET-OUT out
+!
 ip prefix-list PL-DEFAULT seq 10 permit 0.0.0.0/0
 ip prefix-list PL-GAME-EVPN-OUT seq 10 permit 0.0.0.0/0
 ip prefix-list PL-GAME-EVPN-OUT seq 20 permit 10.0.166.0/24
@@ -210,3 +243,19 @@ router bgp 65212
          neighbor 100.64.112.0 activate
          neighbor 100.64.112.0 route-map RM-TEST-IN in
          neighbor 100.64.112.0 route-map RM-TEST-OUT out
+		 
+!Дополнительная настройка для защиты JUMP HOST через CP
+
+ip access-list ACL-CP-TEST
+   statistics per-entry
+   10 permit tcp host 100.64.112.0 eq bgp host 100.64.112.1
+   20 permit tcp host 100.64.112.0 host 100.64.112.1 eq bgp
+   30 permit udp host 100.64.112.0 host 100.64.112.1 eq bfd ttl eq 255
+   40 permit icmp host 100.64.112.0 host 100.64.112.1
+   50 permit ip 10.0.177.0/24 any
+   60 permit ip host 10.0.178.10 any
+   70 permit ip any any tracked
+   999 deny ip any any log
+!
+system control-plane
+   ip access-group ACL-CP-TEST vrf TEST in

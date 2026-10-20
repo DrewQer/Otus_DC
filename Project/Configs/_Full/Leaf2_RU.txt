@@ -112,6 +112,35 @@ interface Vxlan1
 !
 ip virtual-router mac-address 00:1c:73:00:00:99
 !
+ip access-list ACL-TEST-INET-IN
+   10 permit tcp host 100.64.102.0 host 100.64.102.1 eq bgp
+   20 permit tcp host 100.64.102.0 eq bgp host 100.64.102.1
+   30 permit udp host 100.64.102.0 host 100.64.102.1 eq bfd ttl eq 255
+   40 permit icmp host 100.64.102.0 host 100.64.102.1
+   50 deny ip 10.0.0.0/8 any log
+   60 deny ip 100.64.0.0/10 any log
+   70 deny ip 127.0.0.0/8 any log
+   80 deny ip 169.254.0.0/16 any log
+   90 deny ip 172.16.0.0/12 any log
+   100 deny ip 192.168.0.0/16 any log
+   110 deny ip 224.0.0.0/4 any log
+   120 permit tcp 198.51.100.0/24 host 10.0.78.10 eq ssh
+   130 permit tcp 203.0.113.0/24 host 10.0.78.10 eq ssh
+   140 permit icmp 198.51.100.0/24 host 10.0.78.10 echo
+   150 permit icmp 203.0.113.0/24 host 10.0.78.10 echo
+   160 permit icmp 198.51.100.0/24 host 10.0.78.10 echo-reply
+   170 permit icmp 203.0.113.0/24 host 10.0.78.10 echo-reply
+   999 deny ip any any log
+!
+ip access-list ACL-TEST-INET-OUT
+   10 permit tcp host 10.0.78.10 eq ssh any
+   20 permit icmp host 10.0.78.10 any echo-reply
+   30 permit tcp host 100.64.102.1 host 100.64.102.0 eq bgp
+   40 permit tcp host 100.64.102.1 eq bgp host 100.64.102.0
+   50 permit udp host 100.64.102.1 host 100.64.102.0 eq bfd
+   60 permit icmp host 100.64.102.1 host 100.64.102.0
+   999 deny ip any any log
+!
 ip routing ipv6 interfaces 
 ip routing vrf GAME
 ip routing vrf TEST

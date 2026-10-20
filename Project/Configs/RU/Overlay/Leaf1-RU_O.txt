@@ -212,3 +212,27 @@ router bgp 65111
    !
    vrf GAME
       neighbor 10.0.66.11 peer group HOST
+	  
+!Дополнительная настройка для защиты JUMP HOST
+
+ip access-list ACL-SSH-JUMP
+   statistics per-entry
+   10 permit tcp 198.51.100.0/24 any eq ssh
+   20 permit tcp 203.0.113.0/24 any eq ssh
+   999 deny ip any any log
+!
+management ssh
+   ip access-group ACL-SSH-JUMP vrf TEST in
+!
+ip access-list ACL-CP-TEST
+   statistics per-entry
+   10 permit tcp 198.51.100.0/24 host 10.0.78.10 eq ssh
+   20 permit tcp 203.0.113.0/24 host 10.0.78.10 eq ssh
+   30 permit icmp 198.51.100.0/24 host 10.0.78.10
+   40 permit icmp 203.0.113.0/24 host 10.0.78.10
+   50 permit ip 10.0.77.0/24 any
+   60 permit ip any any tracked
+   999 deny ip any any log
+!
+system control-plane
+   ip access-group ACL-CP-TEST vrf TEST in

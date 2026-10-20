@@ -55,6 +55,39 @@ interface Ethernet8
 router bfd
 	bfd interval 1000 min-rx 1000 multiplier 5 default
 !
+ip access-list ACL-TEST-INET-IN
+   10 permit tcp host 100.64.102.0 host 100.64.102.1 eq bgp
+   20 permit tcp host 100.64.102.0 eq bgp host 100.64.102.1
+   30 permit udp host 100.64.102.0 host 100.64.102.1 eq bfd ttl eq 255
+   40 permit icmp host 100.64.102.0 host 100.64.102.1
+   50 deny ip 10.0.0.0/8 any log
+   60 deny ip 100.64.0.0/10 any log
+   70 deny ip 127.0.0.0/8 any log
+   80 deny ip 169.254.0.0/16 any log
+   90 deny ip 172.16.0.0/12 any log
+   100 deny ip 192.168.0.0/16 any log
+   110 deny ip 224.0.0.0/4 any log
+   120 permit tcp 198.51.100.0/24 host 10.0.78.10 eq ssh
+   130 permit tcp 203.0.113.0/24 host 10.0.78.10 eq ssh
+   140 permit icmp 198.51.100.0/24 host 10.0.78.10 echo
+   150 permit icmp 203.0.113.0/24 host 10.0.78.10 echo
+   160 permit icmp 198.51.100.0/24 host 10.0.78.10 echo-reply
+   170 permit icmp 203.0.113.0/24 host 10.0.78.10 echo-reply
+   999 deny ip any any log
+!
+ip access-list ACL-TEST-INET-OUT
+   10 permit tcp host 10.0.78.10 eq ssh any
+   20 permit icmp host 10.0.78.10 any echo-reply
+   30 permit tcp host 100.64.102.1 host 100.64.102.0 eq bgp
+   40 permit tcp host 100.64.102.1 eq bgp host 100.64.102.0
+   50 permit udp host 100.64.102.1 host 100.64.102.0 eq bfd
+   60 permit icmp host 100.64.102.1 host 100.64.102.0
+   999 deny ip any any log
+!
+interface Ethernet5
+   ip access-group ACL-TEST-INET-IN in
+   ip access-group ACL-TEST-INET-OUT out
+!
 ip prefix-list PL-DEFAULT seq 10 permit 0.0.0.0/0
 ip prefix-list PL-GAME-EVPN-OUT seq 10 permit 0.0.0.0/0
 ip prefix-list PL-GAME-EVPN-OUT seq 20 permit 10.0.66.0/24
@@ -230,3 +263,19 @@ router bgp 65112
    !
    vrf GAME
       neighbor 10.0.66.11 peer group HOST
+
+!Дополнительная настройка для защиты JUMP HOST через CP
+
+ip access-list ACL-CP-TEST
+   statistics per-entry
+   10 permit tcp host 100.64.102.0 eq bgp host 100.64.102.1
+   20 permit tcp host 100.64.102.0 host 100.64.102.1 eq bgp
+   30 permit udp host 100.64.102.0 host 100.64.102.1 eq bfd ttl eq 255
+   40 permit icmp host 100.64.102.0 host 100.64.102.1
+   50 permit ip 10.0.77.0/24 any
+   60 permit ip host 10.0.78.10 any
+   70 permit ip any any tracked
+   999 deny ip any any log
+!
+system control-plane
+   ip access-group ACL-CP-TEST vrf TEST in
