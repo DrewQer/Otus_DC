@@ -65,51 +65,69 @@ interface Vxlan1
    vxlan vrf GAME vni 10066
    vxlan vrf TEST vni 10077
 !
-router bfd
-   multihop interval 300 min-rx 300 multiplier 3
-!
 ip prefix-list PL-DEFAULT seq 10 permit 0.0.0.0/0
-ip prefix-list PL-GAME-SUBNET seq 10 permit 10.0.166.0/24
-ip prefix-list PL-GAME-OUT seq 10 permit 10.0.166.0/24
-ip prefix-list PL-GAME-OUT seq 20 permit 10.0.100.100/32
-ip prefix-list PL-GAME-OUT seq 30 permit 10.0.100.2/32
-ip prefix-list PL-GAME-IN seq 10 permit 0.0.0.0/0
-ip prefix-list PL-GAME-IN seq 20 permit 10.0.66.0/24
-ip prefix-list PL-GAME-IN seq 30 permit 10.0.100.1/32
 ip prefix-list PL-GAME-EVPN-OUT seq 10 permit 0.0.0.0/0
 ip prefix-list PL-GAME-EVPN-OUT seq 20 permit 10.0.166.0/24
 ip prefix-list PL-GAME-EVPN-OUT seq 30 permit 10.0.100.0/24 ge 32 le 32
-ip prefix-list PL-VIP-IN seq 10 permit 10.0.100.0/24 ge 32 le 32
+ip prefix-list PL-GAME-IN seq 10 permit 0.0.0.0/0
+ip prefix-list PL-GAME-IN seq 20 permit 10.0.66.0/24
+ip prefix-list PL-GAME-IN seq 30 permit 10.0.100.1/32
+ip prefix-list PL-GAME-OUT seq 10 permit 10.0.166.0/24
+ip prefix-list PL-GAME-OUT seq 20 permit 10.0.100.100/32
+ip prefix-list PL-GAME-OUT seq 30 permit 10.0.100.2/32
+ip prefix-list PL-GAME-SUBNET seq 10 permit 10.0.166.0/24
 ip prefix-list PL-LO10 seq 10 permit 10.0.178.10/32
+ip prefix-list PL-LOOPBACKS seq 10 permit 192.168.10.0/24 le 32
+ip prefix-list PL-LOOPBACKS seq 20 permit 192.168.11.0/24 le 32
+ip prefix-list PL-TEST-SUBNET seq 10 permit 10.0.177.0/24
+ip prefix-list PL-VIP-IN seq 10 permit 10.0.100.0/24 ge 32 le 32
 !
 route-map RM-CONN-GAME permit 10
    match ip address prefix-list PL-GAME-SUBNET
    set origin igp
+!
 route-map RM-CONN-TEST permit 10
    match ip address prefix-list PL-LO10
    set origin igp
+!
+route-map RM-CONN-TEST permit 20
+   match ip address prefix-list PL-TEST-SUBNET
+   set origin igp
+!
 route-map RM-DENY-ALL deny 10
-route-map RM-HOST-IN permit 10
-   match ip address prefix-list PL-VIP-IN
-route-map RM-ISP1-IN permit 10
-   match ip address prefix-list PL-GAME-IN
-   set local-preference 200
-route-map RM-ISP2-IN permit 10
-   match ip address prefix-list PL-GAME-IN
-   set local-preference 100
-route-map RM-ISP1-OUT permit 10
-   match ip address prefix-list PL-GAME-OUT
-route-map RM-ISP2-OUT permit 10
-   match ip address prefix-list PL-GAME-OUT
-   set as-path prepend 65200 65200
+!
 route-map RM-EVPN-IN-GAME permit 10
    match ip address prefix-list PL-DEFAULT
    set local-preference 50
+!
 route-map RM-EVPN-IN-GAME permit 20
+!
 route-map RM-EVPN-OUT-GAME permit 10
    match ip address prefix-list PL-GAME-EVPN-OUT
+!
 route-map RM-EVPN-OUT-TEST permit 10
    match ip address prefix-list PL-LO10
+!
+route-map RM-EVPN-OUT-TEST permit 20
+   match ip address prefix-list PL-TEST-SUBNET
+!
+route-map RM-HOST-IN permit 10
+   match ip address prefix-list PL-VIP-IN
+!
+route-map RM-ISP1-IN permit 10
+   match ip address prefix-list PL-GAME-IN
+   set local-preference 200
+!
+route-map RM-ISP1-OUT permit 10
+   match ip address prefix-list PL-GAME-OUT
+!
+route-map RM-ISP2-IN permit 10
+   match ip address prefix-list PL-GAME-IN
+   set local-preference 100
+!
+route-map RM-ISP2-OUT permit 10
+   match ip address prefix-list PL-GAME-OUT
+   set as-path prepend 65200 65200
 !
 router bgp 65211
    neighbor EVPN-SPINE peer group
@@ -123,7 +141,6 @@ router bgp 65211
    neighbor 192.168.10.2 peer group EVPN-SPINE
    neighbor HOST peer group
    neighbor HOST remote-as 65302
-   neighbor HOST bfd
    neighbor HOST maximum-routes 10
    neighbor ISP1 peer group
    neighbor ISP1 remote-as 65521

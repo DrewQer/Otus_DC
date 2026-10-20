@@ -1667,6 +1667,78 @@ rtt min/avg/max/mdev = 36.340/39.744/43.222/2.810 ms, pipe 3, ipg/ewma 13.305/41
 <summary>Host-RU</summary>
 
 ```
+! A1: связность GAME между сайтами
+
+Host-RU#show ip route vrf GAME
+
+VRF: GAME
+Codes: C - connected, S - static, K - kernel, 
+       O - OSPF, IA - OSPF inter area, E1 - OSPF external type 1,
+       E2 - OSPF external type 2, N1 - OSPF NSSA external type 1,
+       N2 - OSPF NSSA external type2, B - Other BGP Routes,
+       B I - iBGP, B E - eBGP, R - RIP, I L1 - IS-IS level 1,
+       I L2 - IS-IS level 2, O3 - OSPFv3, A B - BGP Aggregate,
+       A O - OSPF Summary, NG - Nexthop Group Static Route,
+       V - VXLAN Control Service, M - Martian,
+       DH - DHCP client installed default route,
+       DP - Dynamic Policy Route, L - VRF Leaked,
+       G  - gRIBI, RC - Route Cache Route
+
+Gateway of last resort:
+ S        0.0.0.0/0 [1/0] via 10.0.66.1, Vlan666
+
+ C        10.0.66.0/24 is directly connected, Vlan666
+ C        10.0.100.1/32 is directly connected, Loopback101
+ C        10.0.100.100/32 is directly connected, Loopback100
+
+Host-RU#show ip bgp summary vrf GAME
+BGP summary information for VRF GAME
+Router identifier 10.0.66.11, local AS number 65301
+Neighbor Status Codes: m - Under maintenance
+  Neighbor  V AS           MsgRcvd   MsgSent  InQ OutQ  Up/Down State   PfxRcd PfxAcc
+  10.0.66.2 4 65111           1613      1627    0    0 00:09:18 Estab   0      0
+  10.0.66.3 4 65112           1594      1645    0    0 00:09:17 Estab   0      0
+
+Host-RU#ping vrf GAME 10.0.166.11 source 10.0.66.11 repeat 5
+PING 10.0.166.11 (10.0.166.11) from 10.0.66.11 : 72(100) bytes of data.
+80 bytes from 10.0.166.11: icmp_seq=1 ttl=60 time=142 ms
+80 bytes from 10.0.166.11: icmp_seq=2 ttl=60 time=141 ms
+80 bytes from 10.0.166.11: icmp_seq=3 ttl=60 time=141 ms
+80 bytes from 10.0.166.11: icmp_seq=4 ttl=60 time=137 ms
+80 bytes from 10.0.166.11: icmp_seq=5 ttl=60 time=141 ms
+
+--- 10.0.166.11 ping statistics ---
+5 packets transmitted, 5 received, 0% packet loss, time 43ms
+rtt min/avg/max/mdev = 137.534/140.816/142.206/1.719 ms, pipe 5, ipg/ewma 10.871/141.458 ms
+
+Host-RU#traceroute vrf GAME 10.0.166.11 source 10.0.66.11
+traceroute to 10.0.166.11 (10.0.166.11), 30 hops max, 60 byte packets
+ 1  10.0.66.2 (10.0.66.2)  233.741 ms  259.529 ms  292.193 ms
+ 2  100.64.1.0 (100.64.1.0)  300.930 ms  318.249 ms  333.135 ms
+ 3  192.0.2.1 (192.0.2.1)  339.332 ms  361.558 ms  369.023 ms
+ 4  100.64.11.1 (100.64.11.1)  375.814 ms  385.277 ms  397.705 ms
+ 5  10.0.166.11 (10.0.166.11)  418.749 ms  428.964 ms  455.556 ms
+
+! A3: доступность unicast VIP другого региона
+
+Host-RU#ping vrf GAME 10.0.100.2 source 10.0.100.1 repeat 5
+PING 10.0.100.2 (10.0.100.2) from 10.0.100.1 : 72(100) bytes of data.
+80 bytes from 10.0.100.2: icmp_seq=1 ttl=60 time=237 ms
+80 bytes from 10.0.100.2: icmp_seq=2 ttl=60 time=229 ms
+80 bytes from 10.0.100.2: icmp_seq=3 ttl=60 time=229 ms
+80 bytes from 10.0.100.2: icmp_seq=4 ttl=60 time=227 ms
+80 bytes from 10.0.100.2: icmp_seq=5 ttl=60 time=224 ms
+
+--- 10.0.100.2 ping statistics ---
+5 packets transmitted, 5 received, 0% packet loss, time 49ms
+rtt min/avg/max/mdev = 224.101/229.704/237.582/4.436 ms, pipe 5, ipg/ewma 12.378/233.379 ms
+Host-RU#traceroute vrf GAME 10.0.100.2 source 10.0.100.1
+traceroute to 10.0.100.2 (10.0.100.2), 30 hops max, 60 byte packets
+ 1  10.0.66.2 (10.0.66.2)  84.507 ms  98.550 ms  107.526 ms
+ 2  100.64.1.0 (100.64.1.0)  131.791 ms  151.977 ms  169.194 ms
+ 3  192.0.2.1 (192.0.2.1)  198.936 ms  231.932 ms  249.236 ms
+ 4  100.64.11.1 (100.64.11.1)  252.942 ms  267.291 ms  283.703 ms
+ 5  10.0.100.2 (10.0.100.2)  317.779 ms  368.680 ms  367.533 ms
 ```
 
 </details>
@@ -1675,6 +1747,59 @@ rtt min/avg/max/mdev = 36.340/39.744/43.222/2.810 ms, pipe 3, ipg/ewma 13.305/41
 <summary>Client-RU</summary>
 
 ```
+Client-RU> show ip 
+
+NAME        : Client-RU[1]
+IP/MASK     : 198.51.100.10/24
+GATEWAY     : 198.51.100.1
+DNS         : 
+MAC         : 00:50:79:66:68:0d
+LPORT       : 20000
+RHOST:PORT  : 127.0.0.1:30000
+MTU         : 1500
+
+! A2: выбор сайта по anycast
+
+Client-RU> ping 10.0.100.100 -c 5
+
+84 bytes from 10.0.100.100 icmp_seq=1 ttl=62 time=39.099 ms
+84 bytes from 10.0.100.100 icmp_seq=2 ttl=62 time=284.997 ms
+84 bytes from 10.0.100.100 icmp_seq=3 ttl=62 time=48.284 ms
+84 bytes from 10.0.100.100 icmp_seq=4 ttl=62 time=29.363 ms
+84 bytes from 10.0.100.100 icmp_seq=5 ttl=62 time=34.267 ms
+
+Client-RU> trace 10.0.100.100
+trace to 10.0.100.100, 8 hops max, press Ctrl+C to stop
+ 1   198.51.100.1   8.238 ms  6.477 ms  6.939 ms
+ 2   100.64.1.1   32.461 ms  19.626 ms  127.048 ms
+ 3     *  *  *
+ 4     *  *  *
+ 5     *  *  *
+ 6     *  *  *
+ 7     *  *  *
+ 8     *  *  *
+
+! A3: unicast VIP другого сайта
+
+
+Client-RU> ping 10.0.100.2 -c 5
+
+84 bytes from 10.0.100.2 icmp_seq=1 ttl=61 time=64.783 ms
+84 bytes from 10.0.100.2 icmp_seq=2 ttl=61 time=66.667 ms
+84 bytes from 10.0.100.2 icmp_seq=3 ttl=61 time=50.018 ms
+84 bytes from 10.0.100.2 icmp_seq=4 ttl=61 time=49.738 ms
+84 bytes from 10.0.100.2 icmp_seq=5 ttl=61 time=50.977 ms
+
+Client-RU> trace 10.0.100.2
+trace to 10.0.100.2, 8 hops max, press Ctrl+C to stop
+ 1   198.51.100.1   4.398 ms  4.317 ms  7.148 ms
+ 2   192.0.2.1   21.751 ms  23.748 ms  23.718 ms
+ 3   100.64.11.1   33.106 ms  43.089 ms  33.775 ms
+ 4     *  *  *
+ 5     *  *  *
+ 6     *  *  *
+ 7     *  *  *
+ 8     *  *  *
 ```
 
 </details>
@@ -1683,6 +1808,132 @@ rtt min/avg/max/mdev = 36.340/39.744/43.222/2.810 ms, pipe 3, ipg/ewma 13.305/41
 <summary>ISP1-RU</summary>
 
 ```
+! A2: какие маршруты и пути видит провайдер
+
+ISP1-RU#show ip route 10.0.100.100/32
+
+VRF: default
+Codes: C - connected, S - static, K - kernel, 
+       O - OSPF, IA - OSPF inter area, E1 - OSPF external type 1,
+       E2 - OSPF external type 2, N1 - OSPF NSSA external type 1,
+       N2 - OSPF NSSA external type2, B - Other BGP Routes,
+       B I - iBGP, B E - eBGP, R - RIP, I L1 - IS-IS level 1,
+       I L2 - IS-IS level 2, O3 - OSPFv3, A B - BGP Aggregate,
+       A O - OSPF Summary, NG - Nexthop Group Static Route,
+       V - VXLAN Control Service, M - Martian,
+       DH - DHCP client installed default route,
+       DP - Dynamic Policy Route, L - VRF Leaked,
+       G  - gRIBI, RC - Route Cache Route
+
+ B E      10.0.100.100/32 [20/0] via 100.64.1.1, Ethernet1
+                                 via 100.64.1.3, Ethernet2
+
+ISP1-RU#show ip bgp 10.0.100.100/32
+BGP routing table information for VRF default
+Router identifier 192.0.2.0, local AS number 65511
+BGP routing table entry for 10.0.100.100/32
+ Paths: 3 available
+  65100 65301
+    100.64.1.1 from 100.64.1.1 (192.168.0.11)
+      Origin IGP, metric 0, localpref 100, IGP metric 0, weight 0, tag 0
+      Received 00:19:25 ago, valid, external, ECMP head, ECMP, best, ECMP contributor
+      Rx SAFI: Unicast
+  65100 65301
+    100.64.1.3 from 100.64.1.3 (192.168.0.12)
+      Origin IGP, metric 0, localpref 100, IGP metric 0, weight 0, tag 0
+      Received 00:19:24 ago, valid, external, ECMP, ECMP contributor
+      Rx SAFI: Unicast
+  65521 65200 65302
+    192.0.2.1 from 192.0.2.1 (192.0.2.1)
+      Origin IGP, metric 0, localpref 100, IGP metric 0, weight 0, tag 0
+      Received 00:19:23 ago, valid, external
+      Rx SAFI: Unicast
+
+ISP1-RU#show ip route 10.0.166.0/24
+
+VRF: default
+Codes: C - connected, S - static, K - kernel, 
+       O - OSPF, IA - OSPF inter area, E1 - OSPF external type 1,
+       E2 - OSPF external type 2, N1 - OSPF NSSA external type 1,
+       N2 - OSPF NSSA external type2, B - Other BGP Routes,
+       B I - iBGP, B E - eBGP, R - RIP, I L1 - IS-IS level 1,
+       I L2 - IS-IS level 2, O3 - OSPFv3, A B - BGP Aggregate,
+       A O - OSPF Summary, NG - Nexthop Group Static Route,
+       V - VXLAN Control Service, M - Martian,
+       DH - DHCP client installed default route,
+       DP - Dynamic Policy Route, L - VRF Leaked,
+       G  - gRIBI, RC - Route Cache Route
+
+ B E      10.0.166.0/24 [20/0] via 192.0.2.1, Ethernet4
+
+ISP1-RU#show ip bgp 10.0.166.0/24
+BGP routing table information for VRF default
+Router identifier 192.0.2.0, local AS number 65511
+BGP routing table entry for 10.0.166.0/24
+ Paths: 2 available
+  65521 65200
+    192.0.2.1 from 192.0.2.1 (192.0.2.1)
+      Origin IGP, metric 0, localpref 100, IGP metric 0, weight 0, tag 0
+      Received 00:19:48 ago, valid, external, best
+      Rx SAFI: Unicast
+  65512 65522 65521 65200
+    192.0.2.5 from 192.0.2.5 (192.0.2.2)
+      Origin IGP, metric 0, localpref 100, IGP metric 0, weight 0, tag 0
+      Received 00:19:48 ago, valid, external
+      Rx SAFI: Unicast
+
+ISP1-RU#show ip route 10.0.100.2/32
+
+VRF: default
+Codes: C - connected, S - static, K - kernel, 
+       O - OSPF, IA - OSPF inter area, E1 - OSPF external type 1,
+       E2 - OSPF external type 2, N1 - OSPF NSSA external type 1,
+       N2 - OSPF NSSA external type2, B - Other BGP Routes,
+       B I - iBGP, B E - eBGP, R - RIP, I L1 - IS-IS level 1,
+       I L2 - IS-IS level 2, O3 - OSPFv3, A B - BGP Aggregate,
+       A O - OSPF Summary, NG - Nexthop Group Static Route,
+       V - VXLAN Control Service, M - Martian,
+       DH - DHCP client installed default route,
+       DP - Dynamic Policy Route, L - VRF Leaked,
+       G  - gRIBI, RC - Route Cache Route
+
+ B E      10.0.100.2/32 [20/0] via 192.0.2.1, Ethernet4
+
+ISP1-RU#show ip bgp summary
+BGP summary information for VRF default
+Router identifier 192.0.2.0, local AS number 65511
+Neighbor Status Codes: m - Under maintenance
+  Neighbor   V AS           MsgRcvd   MsgSent  InQ OutQ  Up/Down State   PfxRcd PfxAcc
+  100.64.1.1 4 65100           1916      2011    0    0 00:19:59 Estab   3      3
+  100.64.1.3 4 65100           1899      2008    0    0 00:19:58 Estab   3      3
+  192.0.2.1  4 65521           1297      1358    0    0 00:20:02 Estab   5      5
+  192.0.2.5  4 65512           2059      2086    0    0 00:20:02 Estab   4      4
+
+! A1/A3: проверка с ISP1 (источник - стык с клиентом)
+
+ISP1-RU#ping 10.0.100.100 source 198.51.100.1 repeat 5
+PING 10.0.100.100 (10.0.100.100) from 198.51.100.1 : 72(100) bytes of data.
+80 bytes from 10.0.100.100: icmp_seq=1 ttl=63 time=83.1 ms
+80 bytes from 10.0.100.100: icmp_seq=2 ttl=63 time=77.7 ms
+80 bytes from 10.0.100.100: icmp_seq=3 ttl=63 time=85.6 ms
+80 bytes from 10.0.100.100: icmp_seq=4 ttl=63 time=81.2 ms
+80 bytes from 10.0.100.100: icmp_seq=5 ttl=63 time=83.1 ms
+
+--- 10.0.100.100 ping statistics ---
+5 packets transmitted, 5 received, 0% packet loss, time 51ms
+rtt min/avg/max/mdev = 77.788/82.221/85.674/2.641 ms, pipe 5, ipg/ewma 12.996/82.749 ms
+
+ISP1-RU#traceroute 10.0.100.100 source 198.51.100.1
+traceroute to 10.0.100.100 (10.0.100.100), 30 hops max, 60 byte packets
+ 1  100.64.1.1 (100.64.1.1)  99.304 ms  110.187 ms  122.515 ms
+ 2  10.0.100.100 (10.0.100.100)  126.714 ms  139.804 ms  147.894 ms
+
+ISP1-RU#traceroute 10.0.100.2 source 198.51.100.1
+traceroute to 10.0.100.2 (10.0.100.2), 30 hops max, 60 byte packets
+ 1  192.0.2.1 (192.0.2.1)  72.950 ms  93.562 ms  101.997 ms
+ 2  100.64.11.1 (100.64.11.1)  130.064 ms  161.094 ms  180.125 ms
+ 3  10.0.100.2 (10.0.100.2)  199.181 ms  215.202 ms  226.443 ms
+
 ```
 
 </details>
@@ -1691,29 +1942,7 @@ rtt min/avg/max/mdev = 36.340/39.744/43.222/2.810 ms, pipe 3, ipg/ewma 13.305/41
 
 #### <u>**Site-EU**</u>
 
-<details>
-<summary>Host-EU</summary>
-
-```
-```
-
-</details>
-
-<details>
-<summary>Client-EU</summary>
-
-```
-```
-
-</details>
-
-<details>
-<summary>ISP1-EU</summary>
-
-```
-```
-
-</details>
+Аналогично Site-RU
 
 ---
 
@@ -1733,6 +1962,179 @@ rtt min/avg/max/mdev = 36.340/39.744/43.222/2.810 ms, pipe 3, ipg/ewma 13.305/41
 <summary>Leaf1-RU</summary>
 
 ```
+! Исходное состояние: сессии с ISP1/ISP2 и выбранные пути
+
+Leaf1-RU#show ip bgp summary vrf GAME
+BGP summary information for VRF GAME
+Router identifier 192.168.0.11, local AS number 65111
+Neighbor Status Codes: m - Under maintenance
+  Neighbor   V AS           MsgRcvd   MsgSent  InQ OutQ  Up/Down State   PfxRcd PfxAcc
+  10.0.66.11 4 65301           2144      2219    0    0 00:05:46 Estab   2      2
+  100.64.1.0 4 65511           2301      2328    0    0 00:05:56 Estab   3      3
+  100.64.2.0 4 65512           2311      2325    0    0 00:05:56 Estab   3      3
+
+Leaf1-RU#show ip route vrf GAME 0.0.0.0/0
+
+VRF: GAME
+Codes: C - connected, S - static, K - kernel, 
+       O - OSPF, IA - OSPF inter area, E1 - OSPF external type 1,
+       E2 - OSPF external type 2, N1 - OSPF NSSA external type 1,
+       N2 - OSPF NSSA external type2, B - Other BGP Routes,
+       B I - iBGP, B E - eBGP, R - RIP, I L1 - IS-IS level 1,
+       I L2 - IS-IS level 2, O3 - OSPFv3, A B - BGP Aggregate,
+       A O - OSPF Summary, NG - Nexthop Group Static Route,
+       V - VXLAN Control Service, M - Martian,
+       DH - DHCP client installed default route,
+       DP - Dynamic Policy Route, L - VRF Leaked,
+       G  - gRIBI, RC - Route Cache Route
+
+Gateway of last resort:
+ B E      0.0.0.0/0 [20/0] via 100.64.1.0, Ethernet7
+
+
+Leaf1-RU#show ip bgp 0.0.0.0/0 vrf GAME 
+BGP routing table information for VRF GAME
+Router identifier 192.168.0.11, local AS number 65111
+BGP routing table entry for 0.0.0.0/0
+ Paths: 4 available
+  65511
+    100.64.1.0 from 100.64.1.0 (192.0.2.0)
+      Origin IGP, metric 0, localpref 200, IGP metric 0, weight 0, tag 0
+      Received 00:06:29 ago, valid, external, best
+      Rx SAFI: Unicast
+  65512
+    100.64.2.0 from 100.64.2.0 (192.0.2.2)
+      Origin IGP, metric 0, localpref 100, IGP metric 0, weight 0, tag 0
+      Received 00:06:29 ago, valid, external
+      Rx SAFI: Unicast
+  65101 65112 65511
+    192.168.1.12 from 192.168.0.1 (192.168.0.1), imported EVPN route, RD 192.168.0.12:10066
+      Origin IGP, metric 0, localpref 50, IGP metric 0, weight 0, tag 0
+      Received 00:06:24 ago, valid, external, ECMP head, ECMP, ECMP contributor
+      Extended Community: Route-Target-AS:65000:10066 TunnelEncap:tunnelTypeVxlan EvpnRouterMac:50:00:00:72:8b:31
+      Remote VNI: 10066
+      Rx SAFI: Unicast
+  65101 65112 65511
+    192.168.1.12 from 192.168.0.2 (192.168.0.2), imported EVPN route, RD 192.168.0.12:10066
+      Origin IGP, metric 0, localpref 50, IGP metric 0, weight 0, tag 0
+      Received 00:06:23 ago, valid, external, ECMP, ECMP contributor
+      Extended Community: Route-Target-AS:65000:10066 TunnelEncap:tunnelTypeVxlan EvpnRouterMac:50:00:00:72:8b:31
+      Remote VNI: 10066
+      Rx SAFI: Unicast
+
+Leaf1-RU#show bfd peers
+VRF name: default
+-----------------
+DstAddr         MyDisc   YourDisc Interface/Transport     Type          LastUp 
+----------- ---------- ---------- ------------------- --------- ---------------
+192.168.0.1 2213006539  630651899                  NA multihop  10/20/26 09:04 
+192.168.0.2  520138073 2537312604                  NA multihop  10/20/26 09:04 
+
+         LastDown            LastDiag    State
+-------------------- ------------------- -----
+   10/20/26 09:04       No Diagnostic       Up
+   10/20/26 09:04       No Diagnostic       Up
+
+DstAddr                      MyDisc    YourDisc   Interface/Transport     Type 
+------------------------ ----------- ----------- --------------------- --------
+fe80::5200:ff:fecb:38c2  2006425130   909827565         Ethernet2(17)   normal 
+fe80::5200:ff:fed7:ee0b  1748569817  1851814833         Ethernet1(16)   normal 
+
+           LastUp             LastDown            LastDiag    State
+-------------------- -------------------- ------------------- -----
+   10/20/26 09:04       10/20/26 09:04       No Diagnostic       Up
+   10/20/26 09:04       10/20/26 09:04       No Diagnostic       Up
+
+
+VRF name: GAME
+-----------------
+DstAddr        MyDisc    YourDisc  Interface/Transport    Type          LastUp 
+---------- ----------- ----------- -------------------- ------- ---------------
+100.64.1.0 1909052869  2505750980        Ethernet7(36)  normal  10/20/26 09:04 
+100.64.2.0 2503954748  1737306551        Ethernet8(37)  normal  10/20/26 09:04 
+
+         LastDown            LastDiag    State
+-------------------- ------------------- -----
+   10/20/26 09:04       No Diagnostic       Up
+   10/20/26 09:04       No Diagnostic       Up
+
+! D1: отказ uplink Leaf-ISP1
+
+Leaf1-RU(config)#int e7
+Leaf1-RU(config-if-Et7)#shu
+Leaf1-RU(config-if-Et7)#
+Oct 20 09:13:19 Leaf1-RU Bfd: %BFD-5-STATE_CHANGE: peer (vrf:GAME, ip:100.64.1.0, intf:Ethernet7, type:normal) changed state from Up to Down diag None
+Leaf1-RU(config-if-Et7)#
+Oct 20 09:13:19 Leaf1-RU Ebra: %LINEPROTO-5-UPDOWN: Line protocol on Interface Ethernet7 (TO_ISP1-RU_Eth1), changed state to down
+Leaf1-RU(config-if-Et7)#
+Oct 20 09:13:19 Leaf1-RU Bgp: %BGP-5-ADJCHANGE: peer 100.64.1.0 (VRF GAME AS 65511) old state Established event Stop new state Idle
+Leaf1-RU(config-if-Et7)#
+Oct 20 09:13:19 Leaf1-RU Bgp: %BGP-3-NOTIFICATION: sent to neighbor 100.64.1.0 (VRF GAME AS 65511) 6/10 (Cease/BFD down <Hard Reset>) 0 bytes
+
+Leaf1-RU(config-if-Et7)#show ip bgp summary vrf GAME
+BGP summary information for VRF GAME
+Router identifier 192.168.0.11, local AS number 65111
+Neighbor Status Codes: m - Under maintenance
+  Neighbor   V AS           MsgRcvd   MsgSent  InQ OutQ  Up/Down State   PfxRcd PfxAcc
+  10.0.66.11 4 65301           2215      2292    0    0 00:08:50 Estab   2      2
+  100.64.1.0 4 65511           2367      2393    0    0 00:00:15 Idle(NoIf)
+  100.64.2.0 4 65512           2382      2398    0    0 00:08:59 Estab   3      3
+
+Leaf1-RU(config-if-Et7)#show ip route vrf GAME 0.0.0.0/0
+
+VRF: GAME
+Codes: C - connected, S - static, K - kernel, 
+       O - OSPF, IA - OSPF inter area, E1 - OSPF external type 1,
+       E2 - OSPF external type 2, N1 - OSPF NSSA external type 1,
+       N2 - OSPF NSSA external type2, B - Other BGP Routes,
+       B I - iBGP, B E - eBGP, R - RIP, I L1 - IS-IS level 1,
+       I L2 - IS-IS level 2, O3 - OSPFv3, A B - BGP Aggregate,
+       A O - OSPF Summary, NG - Nexthop Group Static Route,
+       V - VXLAN Control Service, M - Martian,
+       DH - DHCP client installed default route,
+       DP - Dynamic Policy Route, L - VRF Leaked,
+       G  - gRIBI, RC - Route Cache Route
+
+Gateway of last resort:
+ B E      0.0.0.0/0 [20/0] via 100.64.2.0, Ethernet8
+
+
+Leaf1-RU(config-if-Et7)#show ip bgp 0.0.0.0/0 vrf GAME 
+BGP routing table information for VRF GAME
+Router identifier 192.168.0.11, local AS number 65111
+BGP routing table entry for 0.0.0.0/0
+ Paths: 3 available
+  65512
+    100.64.2.0 from 100.64.2.0 (192.0.2.2)
+      Origin IGP, metric 0, localpref 100, IGP metric 0, weight 0, tag 0
+      Received 00:09:19 ago, valid, external, best
+      Rx SAFI: Unicast
+  65101 65112 65511
+    192.168.1.12 from 192.168.0.1 (192.168.0.1), imported EVPN route, RD 192.168.0.12:10066
+      Origin IGP, metric 0, localpref 50, IGP metric 0, weight 0, tag 0
+      Received 00:09:14 ago, valid, external, ECMP head, ECMP, ECMP contributor
+      Extended Community: Route-Target-AS:65000:10066 TunnelEncap:tunnelTypeVxlan EvpnRouterMac:50:00:00:72:8b:31
+      Remote VNI: 10066
+      Rx SAFI: Unicast
+  65101 65112 65511
+    192.168.1.12 from 192.168.0.2 (192.168.0.2), imported EVPN route, RD 192.168.0.12:10066
+      Origin IGP, metric 0, localpref 50, IGP metric 0, weight 0, tag 0
+      Received 00:09:12 ago, valid, external, ECMP, ECMP contributor
+      Extended Community: Route-Target-AS:65000:10066 TunnelEncap:tunnelTypeVxlan EvpnRouterMac:50:00:00:72:8b:31
+      Remote VNI: 10066
+      Rx SAFI: Unicast
+
+Leaf1-RU(config-if-Et7)#ping vrf GAME 10.0.166.11 source 10.0.66.2
+PING 10.0.166.11 (10.0.166.11) from 10.0.66.2 : 72(100) bytes of data.
+80 bytes from 10.0.166.11: icmp_seq=1 ttl=60 time=306 ms
+80 bytes from 10.0.166.11: icmp_seq=2 ttl=60 time=304 ms
+80 bytes from 10.0.166.11: icmp_seq=3 ttl=60 time=305 ms
+80 bytes from 10.0.166.11: icmp_seq=4 ttl=60 time=306 ms
+80 bytes from 10.0.166.11: icmp_seq=5 ttl=60 time=306 ms
+
+--- 10.0.166.11 ping statistics ---
+5 packets transmitted, 5 received, 0% packet loss, time 48ms
+rtt min/avg/max/mdev = 304.050/305.770/306.710/0.977 ms, pipe 5, ipg/ewma 12.179/306.054 ms
 ```
 
 </details>
@@ -1741,6 +2143,217 @@ rtt min/avg/max/mdev = 36.340/39.744/43.222/2.810 ms, pipe 3, ipg/ewma 13.305/41
 <summary>Leaf2-RU</summary>
 
 ```
+! Исходное состояние: сессии с ISP1/ISP2 и выбранные пути
+
+Leaf2-RU#show ip bgp summary vrf GAME
+BGP summary information for VRF GAME
+Router identifier 192.168.0.12, local AS number 65112
+Neighbor Status Codes: m - Under maintenance
+  Neighbor   V AS           MsgRcvd   MsgSent  InQ OutQ  Up/Down State   PfxRcd PfxAcc
+  10.0.66.11 4 65301           2297      2349    0    0 00:11:39 Estab   2      2
+  100.64.1.2 4 65511           2428      2457    0    0 00:11:47 Estab   3      3
+  100.64.2.2 4 65512           2426      2457    0    0 00:11:47 Estab   3      3
+
+Leaf2-RU#show ip route vrf GAME 0.0.0.0/0
+
+VRF: GAME
+Codes: C - connected, S - static, K - kernel, 
+       O - OSPF, IA - OSPF inter area, E1 - OSPF external type 1,
+       E2 - OSPF external type 2, N1 - OSPF NSSA external type 1,
+       N2 - OSPF NSSA external type2, B - Other BGP Routes,
+       B I - iBGP, B E - eBGP, R - RIP, I L1 - IS-IS level 1,
+       I L2 - IS-IS level 2, O3 - OSPFv3, A B - BGP Aggregate,
+       A O - OSPF Summary, NG - Nexthop Group Static Route,
+       V - VXLAN Control Service, M - Martian,
+       DH - DHCP client installed default route,
+       DP - Dynamic Policy Route, L - VRF Leaked,
+       G  - gRIBI, RC - Route Cache Route
+
+Gateway of last resort:
+ B E      0.0.0.0/0 [20/0] via 100.64.1.2, Ethernet7
+
+
+Leaf2-RU#show ip bgp 0.0.0.0/0 vrf GAME
+BGP routing table information for VRF GAME
+Router identifier 192.168.0.12, local AS number 65112
+BGP routing table entry for 0.0.0.0/0
+ Paths: 4 available
+  65511
+    100.64.1.2 from 100.64.1.2 (192.0.2.0)
+      Origin IGP, metric 0, localpref 200, IGP metric 0, weight 0, tag 0
+      Received 00:12:04 ago, valid, external, best
+      Rx SAFI: Unicast
+  65512
+    100.64.2.2 from 100.64.2.2 (192.0.2.2)
+      Origin IGP, metric 0, localpref 100, IGP metric 0, weight 0, tag 0
+      Received 00:12:04 ago, valid, external
+      Rx SAFI: Unicast
+  65101 65111 65511
+    192.168.1.11 from 192.168.0.2 (192.168.0.2), imported EVPN route, RD 192.168.0.11:10066
+      Origin IGP, metric 0, localpref 50, IGP metric 0, weight 0, tag 0
+      Received 00:01:48 ago, valid, external, ECMP head, ECMP, ECMP contributor
+      Extended Community: Route-Target-AS:65000:10066 TunnelEncap:tunnelTypeVxlan EvpnRouterMac:50:00:00:15:f4:e8
+      Remote VNI: 10066
+      Rx SAFI: Unicast
+  65101 65111 65511
+    192.168.1.11 from 192.168.0.1 (192.168.0.1), imported EVPN route, RD 192.168.0.11:10066
+      Origin IGP, metric 0, localpref 50, IGP metric 0, weight 0, tag 0
+      Received 00:01:48 ago, valid, external, ECMP, ECMP contributor
+      Extended Community: Route-Target-AS:65000:10066 TunnelEncap:tunnelTypeVxlan EvpnRouterMac:50:00:00:15:f4:e8
+      Remote VNI: 10066
+      Rx SAFI: Unicast
+
+Leaf2-RU#show bfd peers
+VRF name: default
+-----------------
+DstAddr         MyDisc   YourDisc Interface/Transport     Type          LastUp 
+----------- ---------- ---------- ------------------- --------- ---------------
+192.168.0.1  771098164 1665060913                  NA multihop  10/20/26 09:04 
+192.168.0.2 1513112563 3850177059                  NA multihop  10/20/26 09:04 
+
+         LastDown            LastDiag    State
+-------------------- ------------------- -----
+   10/20/26 09:04       No Diagnostic       Up
+   10/20/26 09:04       No Diagnostic       Up
+
+DstAddr                      MyDisc    YourDisc   Interface/Transport     Type 
+------------------------ ----------- ----------- --------------------- --------
+fe80::5200:ff:fecb:38c2  3728895125  1136549295         Ethernet2(16)   normal 
+fe80::5200:ff:fed7:ee0b  1740275538   771508800         Ethernet1(15)   normal 
+
+           LastUp             LastDown            LastDiag    State
+-------------------- -------------------- ------------------- -----
+   10/20/26 09:04       10/20/26 09:04       No Diagnostic       Up
+   10/20/26 09:04       10/20/26 09:04       No Diagnostic       Up
+
+
+VRF name: GAME
+-----------------
+DstAddr        MyDisc    YourDisc  Interface/Transport    Type          LastUp 
+---------- ----------- ----------- -------------------- ------- ---------------
+100.64.1.2 4173234330   626924963        Ethernet7(35)  normal  10/20/26 09:04 
+100.64.2.2    5399455  3785879225        Ethernet8(36)  normal  10/20/26 09:04 
+
+         LastDown            LastDiag    State
+-------------------- ------------------- -----
+   10/20/26 09:04       No Diagnostic       Up
+   10/20/26 09:04       No Diagnostic       Up
+
+
+VRF name: TEST
+-----------------
+DstAddr          MyDisc  YourDisc  Interface/Transport    Type          LastUp 
+------------ ---------- ---------- -------------------- ------- ---------------
+100.64.102.0 3670879081 158028832        Ethernet5(37)  normal  10/20/26 09:04 
+
+         LastDown            LastDiag    State
+-------------------- ------------------- -----
+   10/20/26 09:04       No Diagnostic       Up
+
+! D2: после выключения ISP1-RU оба Leaf должны перейти на ISP2
+
+Leaf2-RU#
+Oct 20 09:21:27 Leaf2-RU Ebra: %LINEPROTO-5-UPDOWN: Line protocol on Interface Ethernet7 (TO_ISP1-RU_Eth2), changed state to down
+Leaf2-RU#
+Oct 20 09:21:27 Leaf2-RU Bfd: %BFD-5-STATE_CHANGE: peer (vrf:GAME, ip:100.64.1.2, intf:Ethernet7, type:normal) changed state from Up to Down diag None
+Leaf2-RU#
+Oct 20 09:21:28 Leaf2-RU Bgp: %BGP-5-ADJCHANGE: peer 100.64.1.2 (VRF GAME AS 65511) old state Established event Stop new state Idle
+Leaf2-RU#
+Oct 20 09:21:28 Leaf2-RU Bgp: %BGP-3-NOTIFICATION: sent to neighbor 100.64.1.2 (VRF GAME AS 65511) 6/10 (Cease/BFD down <Hard Reset>) 0 bytes
+
+Leaf2-RU#show ip bgp summary vrf GAME
+BGP summary information for VRF GAME
+Router identifier 192.168.0.12, local AS number 65112
+Neighbor Status Codes: m - Under maintenance
+  Neighbor   V AS           MsgRcvd   MsgSent  InQ OutQ  Up/Down State   PfxRcd PfxAcc
+  10.0.66.11 4 65301           2424      2475    0    0 00:17:05 Estab   2      2
+  100.64.1.2 4 65511           2494      2525    0    0 00:00:23 Idle(NoIf)
+  100.64.2.2 4 65512           2553      2581    0    0 00:17:13 Estab   3      3
+
+Leaf2-RU#show ip route vrf GAME 0.0.0.0/0
+
+VRF: GAME
+Codes: C - connected, S - static, K - kernel, 
+       O - OSPF, IA - OSPF inter area, E1 - OSPF external type 1,
+       E2 - OSPF external type 2, N1 - OSPF NSSA external type 1,
+       N2 - OSPF NSSA external type2, B - Other BGP Routes,
+       B I - iBGP, B E - eBGP, R - RIP, I L1 - IS-IS level 1,
+       I L2 - IS-IS level 2, O3 - OSPFv3, A B - BGP Aggregate,
+       A O - OSPF Summary, NG - Nexthop Group Static Route,
+       V - VXLAN Control Service, M - Martian,
+       DH - DHCP client installed default route,
+       DP - Dynamic Policy Route, L - VRF Leaked,
+       G  - gRIBI, RC - Route Cache Route
+
+Gateway of last resort:
+ B E      0.0.0.0/0 [20/0] via 100.64.2.2, Ethernet8
+
+
+Leaf2-RU#show bgp evpn route-type ip-prefix ipv4
+BGP routing table information for VRF default
+Router identifier 192.168.0.12, local AS number 65112
+Route status codes: * - valid, > - active, S - Stale, E - ECMP head, e - ECMP
+                    c - Contributing to ECMP, % - Pending BGP convergence
+Origin codes: i - IGP, e - EGP, ? - incomplete
+AS Path Attributes: Or-ID - Originator ID, C-LST - Cluster List, LL Nexthop - Link Local Nexthop
+
+          Network                Next Hop              Metric  LocPref Weight  Path
+ * >Ec    RD: 192.168.0.11:10066 ip-prefix 0.0.0.0/0
+                                 192.168.1.11          -       100     0       65101 65111 65512 i
+ *  ec    RD: 192.168.0.11:10066 ip-prefix 0.0.0.0/0
+                                 192.168.1.11          -       100     0       65101 65111 65512 i
+ * >      RD: 192.168.0.12:10066 ip-prefix 0.0.0.0/0
+                                 -                     -       100     0       65512 i
+ * >      RD: 192.168.0.12:10077 ip-prefix 0.0.0.0/0
+                                 -                     -       100     0       65512 i
+ * >Ec    RD: 192.168.0.11:10066 ip-prefix 10.0.66.0/24
+                                 192.168.1.11          -       100     0       65101 65111 i
+ *  ec    RD: 192.168.0.11:10066 ip-prefix 10.0.66.0/24
+                                 192.168.1.11          -       100     0       65101 65111 i
+ * >      RD: 192.168.0.12:10066 ip-prefix 10.0.66.0/24
+                                 -                     -       -       0       i
+ * >Ec    RD: 192.168.0.11:10077 ip-prefix 10.0.77.0/24
+                                 192.168.1.11          -       100     0       65101 65111 i
+ *  ec    RD: 192.168.0.11:10077 ip-prefix 10.0.77.0/24
+                                 192.168.1.11          -       100     0       65101 65111 i
+ * >      RD: 192.168.0.12:10077 ip-prefix 10.0.77.0/24
+                                 -                     -       -       0       i
+ * >Ec    RD: 192.168.0.11:10077 ip-prefix 10.0.78.10/32
+                                 192.168.1.11          -       100     0       65101 65111 i
+ *  ec    RD: 192.168.0.11:10077 ip-prefix 10.0.78.10/32
+                                 192.168.1.11          -       100     0       65101 65111 i
+ * >Ec    RD: 192.168.0.11:10066 ip-prefix 10.0.100.1/32
+                                 192.168.1.11          -       100     0       65101 65111 65301 i
+ *  ec    RD: 192.168.0.11:10066 ip-prefix 10.0.100.1/32
+                                 192.168.1.11          -       100     0       65101 65111 65301 i
+ * >      RD: 192.168.0.12:10066 ip-prefix 10.0.100.1/32
+                                 -                     -       100     0       65301 i
+ * >Ec    RD: 192.168.0.11:10066 ip-prefix 10.0.100.2/32
+                                 192.168.1.11          -       100     0       65101 65111 65512 65511 65521 65200 65302 i
+ *  ec    RD: 192.168.0.11:10066 ip-prefix 10.0.100.2/32
+                                 192.168.1.11          -       100     0       65101 65111 65512 65511 65521 65200 65302 i
+ * >      RD: 192.168.0.12:10066 ip-prefix 10.0.100.2/32
+                                 -                     -       100     0       65512 65511 65521 65200 65302 i
+ * >Ec    RD: 192.168.0.11:10066 ip-prefix 10.0.100.100/32
+                                 192.168.1.11          -       100     0       65101 65111 65301 i
+ *  ec    RD: 192.168.0.11:10066 ip-prefix 10.0.100.100/32
+                                 192.168.1.11          -       100     0       65101 65111 65301 i
+ * >      RD: 192.168.0.12:10066 ip-prefix 10.0.100.100/32
+                                 -                     -       100     0       65301 i
+
+Leaf2-RU#ping vrf GAME 10.0.166.11 source 10.0.66.3
+PING 10.0.166.11 (10.0.166.11) from 10.0.66.3 : 72(100) bytes of data.
+80 bytes from 10.0.166.11: icmp_seq=1 ttl=59 time=171 ms
+80 bytes from 10.0.166.11: icmp_seq=2 ttl=59 time=169 ms
+80 bytes from 10.0.166.11: icmp_seq=3 ttl=59 time=179 ms
+80 bytes from 10.0.166.11: icmp_seq=4 ttl=59 time=190 ms
+80 bytes from 10.0.166.11: icmp_seq=5 ttl=59 time=189 ms
+
+--- 10.0.166.11 ping statistics ---
+5 packets transmitted, 5 received, 0% packet loss, time 51ms
+rtt min/avg/max/mdev = 169.827/180.096/190.694/8.890 ms, pipe 5, ipg/ewma 12.984/176.227 ms
+
+
 ```
 
 </details>
@@ -1749,14 +2362,114 @@ rtt min/avg/max/mdev = 36.340/39.744/43.222/2.810 ms, pipe 3, ipg/ewma 13.305/41
 <summary>ISP1-RU</summary>
 
 ```
-```
+! Исходное состояние
 
-</details>
+ISP1-RU#show ip bgp summary
+BGP summary information for VRF default
+Router identifier 192.0.2.0, local AS number 65511
+Neighbor Status Codes: m - Under maintenance
+  Neighbor   V AS           MsgRcvd   MsgSent  InQ OutQ  Up/Down State   PfxRcd PfxAcc
+  100.64.1.1 4 65100           2498      2610    0    0 00:00:24 Estab   3      3
+  100.64.1.3 4 65100           2468      2581    0    0 00:00:25 Estab   3      3
+  192.0.2.1  4 65521           1960      2023    0    0 00:19:07 Estab   6      6
+  192.0.2.5  4 65512           2718      2751    0    0 00:19:07 Estab   2      2
 
-<details>
-<summary>ISP2-RU</summary>
+ISP1-RU#show ip route 10.0.166.0/24
 
-```
+VRF: default
+Codes: C - connected, S - static, K - kernel, 
+       O - OSPF, IA - OSPF inter area, E1 - OSPF external type 1,
+       E2 - OSPF external type 2, N1 - OSPF NSSA external type 1,
+       N2 - OSPF NSSA external type2, B - Other BGP Routes,
+       B I - iBGP, B E - eBGP, R - RIP, I L1 - IS-IS level 1,
+       I L2 - IS-IS level 2, O3 - OSPFv3, A B - BGP Aggregate,
+       A O - OSPF Summary, NG - Nexthop Group Static Route,
+       V - VXLAN Control Service, M - Martian,
+       DH - DHCP client installed default route,
+       DP - Dynamic Policy Route, L - VRF Leaked,
+       G  - gRIBI, RC - Route Cache Route
+
+ B E      10.0.166.0/24 [20/0] via 192.0.2.1, Ethernet4
+
+ISP1-RU#show ip bgp 10.0.166.0/24
+BGP routing table information for VRF default
+Router identifier 192.0.2.0, local AS number 65511
+BGP routing table entry for 10.0.166.0/24
+ Paths: 1 available
+  65521 65200
+    192.0.2.1 from 192.0.2.1 (192.0.2.1)
+      Origin IGP, metric 0, localpref 100, IGP metric 0, weight 0, tag 0
+      Received 00:19:14 ago, valid, external, best
+      Rx SAFI: Unicast
+
+ISP1-RU#traceroute 10.0.100.2 source 198.51.100.1
+traceroute to 10.0.100.2 (10.0.100.2), 30 hops max, 60 byte packets
+ 1  192.0.2.1 (192.0.2.1)  47.300 ms  65.080 ms  66.324 ms
+ 2  100.64.11.1 (100.64.11.1)  84.507 ms  112.646 ms  120.021 ms
+ 3  10.0.100.2 (10.0.100.2)  277.027 ms  281.158 ms  299.068 ms
+
+! D3: отказ звена кольца ISP1-RU - ISP1-EU
+
+ISP1-RU#conf t
+ISP1-RU(config)#
+Oct 20 09:24:41 ISP1-RU ConfigAgent: %SYS-5-CONFIG_E: Enter configuration mode from console by admin on con0 (0.0.0.0)
+ISP1-RU(config)#int e4
+ISP1-RU(config-if-Et4)#shu
+ISP1-RU(config-if-Et4)#
+Oct 20 09:24:45 ISP1-RU Bfd: %BFD-5-STATE_CHANGE: peer (vrf:default, ip:192.0.2.1, intf:Ethernet4, type:normal) changed state from Up to Down diag None
+ISP1-RU(config-if-Et4)#
+Oct 20 09:24:45 ISP1-RU Bgp: %BGP-5-ADJCHANGE: peer 192.0.2.1 (VRF default AS 65521) old state Established event Stop new state Idle
+ISP1-RU(config-if-Et4)#
+Oct 20 09:24:45 ISP1-RU Ebra: %LINEPROTO-5-UPDOWN: Line protocol on Interface Ethernet4 (TO_ISP1-EU_Eth4), changed state to down
+ISP1-RU(config-if-Et4)#
+Oct 20 09:24:45 ISP1-RU Bgp: %BGP-3-NOTIFICATION: sent to neighbor 192.0.2.1 (VRF default AS 65521) 6/10 (Cease/BFD down <Hard Reset>) 0 bytes
+
+ISP1-RU(config-if-Et4)#show ip bgp summary
+BGP summary information for VRF default
+Router identifier 192.0.2.0, local AS number 65511
+Neighbor Status Codes: m - Under maintenance
+  Neighbor   V AS           MsgRcvd   MsgSent  InQ OutQ  Up/Down State   PfxRcd PfxAcc
+  100.64.1.1 4 65100           2527      2641    0    0 00:01:38 Estab   3      3
+  100.64.1.3 4 65100           2497      2613    0    0 00:01:39 Estab   3      3
+  192.0.2.1  4 65521           1986      2049    0    0 00:00:08 Idle(NoIf)
+  192.0.2.5  4 65512           2749      2782    0    0 00:20:21 Estab   5      5
+
+ISP1-RU(config-if-Et4)#show ip route 10.0.166.0/24
+
+VRF: default
+Codes: C - connected, S - static, K - kernel, 
+       O - OSPF, IA - OSPF inter area, E1 - OSPF external type 1,
+       E2 - OSPF external type 2, N1 - OSPF NSSA external type 1,
+       N2 - OSPF NSSA external type2, B - Other BGP Routes,
+       B I - iBGP, B E - eBGP, R - RIP, I L1 - IS-IS level 1,
+       I L2 - IS-IS level 2, O3 - OSPFv3, A B - BGP Aggregate,
+       A O - OSPF Summary, NG - Nexthop Group Static Route,
+       V - VXLAN Control Service, M - Martian,
+       DH - DHCP client installed default route,
+       DP - Dynamic Policy Route, L - VRF Leaked,
+       G  - gRIBI, RC - Route Cache Route
+
+ B E      10.0.166.0/24 [20/0] via 192.0.2.5, Ethernet3
+
+ISP1-RU(config-if-Et4)#show ip bgp 10.0.166.0/24
+BGP routing table information for VRF default
+Router identifier 192.0.2.0, local AS number 65511
+BGP routing table entry for 10.0.166.0/24
+ Paths: 1 available
+  65512 65522 65521 65200
+    192.0.2.5 from 192.0.2.5 (192.0.2.2)
+      Origin IGP, metric 0, localpref 100, IGP metric 0, weight 0, tag 0
+      Received 00:00:25 ago, valid, external, best
+      Rx SAFI: Unicast
+
+ISP1-RU(config-if-Et4)#traceroute 10.0.100.2 source 198.51.100.1
+traceroute to 10.0.100.2 (10.0.100.2), 30 hops max, 60 byte packets
+ 1  192.0.2.5 (192.0.2.5)  68.082 ms  72.145 ms  85.375 ms
+ 2  192.0.2.3 (192.0.2.3)  97.636 ms  126.501 ms  131.871 ms
+ 3  192.0.2.6 (192.0.2.6)  143.452 ms  180.572 ms  185.388 ms
+ 4  100.64.11.1 (100.64.11.1)  287.841 ms  304.565 ms  318.412 ms
+ 5  10.0.100.2 (10.0.100.2)  331.971 ms  353.907 ms  363.392 ms
+
 ```
 
 </details>
@@ -1765,6 +2478,37 @@ rtt min/avg/max/mdev = 36.340/39.744/43.222/2.810 ms, pipe 3, ipg/ewma 13.305/41
 <summary>Client-RU</summary>
 
 ```
+! D1-D3: непрерывный ping во время отказа ISP1 (сначала до Leaf1, после Leaf2), фиксировать потери и время восстановления
+
+Client-RU> ping 10.0.100.2 -c 60
+
+84 bytes from 10.0.100.2 icmp_seq=1 ttl=61 time=65.565 ms
+84 bytes from 10.0.100.2 icmp_seq=2 ttl=61 time=195.056 ms
+84 bytes from 10.0.100.2 icmp_seq=3 ttl=61 time=52.815 ms
+84 bytes from 10.0.100.2 icmp_seq=4 ttl=61 time=54.581 ms
+84 bytes from 10.0.100.2 icmp_seq=5 ttl=61 time=94.524 ms
+84 bytes from 10.0.100.2 icmp_seq=6 ttl=61 time=68.042 ms
+*192.0.2.1 icmp_seq=7 ttl=63 time=631.996 ms (ICMP type:3, code:0, Destination network unreachable)
+84 bytes from 10.0.100.2 icmp_seq=8 ttl=61 time=50.625 ms
+84 bytes from 10.0.100.2 icmp_seq=9 ttl=61 time=42.108 ms
+84 bytes from 10.0.100.2 icmp_seq=10 ttl=61 time=183.537 ms
+84 bytes from 10.0.100.2 icmp_seq=11 ttl=61 time=54.468 ms
+84 bytes from 10.0.100.2 icmp_seq=12 ttl=61 time=142.831 ms
+84 bytes from 10.0.100.2 icmp_seq=13 ttl=61 time=50.426 ms
+84 bytes from 10.0.100.2 icmp_seq=14 ttl=61 time=62.459 ms
+*192.0.2.1 icmp_seq=15 ttl=63 time=206.992 ms (ICMP type:3, code:0, Destination network unreachable)
+84 bytes from 10.0.100.2 icmp_seq=16 ttl=60 time=73.500 ms
+84 bytes from 10.0.100.2 icmp_seq=17 ttl=60 time=71.048 ms
+84 bytes from 10.0.100.2 icmp_seq=18 ttl=60 time=316.630 ms
+84 bytes from 10.0.100.2 icmp_seq=19 ttl=60 time=60.929 ms
+84 bytes from 10.0.100.2 icmp_seq=20 ttl=60 time=103.025 ms
+84 bytes from 10.0.100.2 icmp_seq=21 ttl=60 time=57.309 ms
+84 bytes from 10.0.100.2 icmp_seq=22 ttl=60 time=57.648 ms
+84 bytes from 10.0.100.2 icmp_seq=23 ttl=60 time=82.400 ms
+84 bytes from 10.0.100.2 icmp_seq=24 ttl=60 time=62.262 ms
+84 bytes from 10.0.100.2 icmp_seq=25 ttl=60 time=67.745 ms
+84 bytes from 10.0.100.2 icmp_seq=26 ttl=60 time=87.225 ms
+84 bytes from 10.0.100.2 icmp_seq=27 ttl=60 time=71.798 ms
 ```
 
 </details>
@@ -1773,13 +2517,7 @@ rtt min/avg/max/mdev = 36.340/39.744/43.222/2.810 ms, pipe 3, ipg/ewma 13.305/41
 
 #### <u>**Site-EU**</u>
 
-<details>
-<summary>Leaf1-EU</summary>
-
-```
-```
-
-</details>
+Аналогично Site-RU
 
 ---
 
@@ -1802,6 +2540,126 @@ rtt min/avg/max/mdev = 36.340/39.744/43.222/2.810 ms, pipe 3, ipg/ewma 13.305/41
 <summary>Client-RU</summary>
 
 ```
+!Исходное состояние
+
+Client-RU> ping 10.0.100.100 -c 10
+
+84 bytes from 10.0.100.100 icmp_seq=1 ttl=62 time=34.635 ms
+84 bytes from 10.0.100.100 icmp_seq=2 ttl=62 time=88.654 ms
+84 bytes from 10.0.100.100 icmp_seq=3 ttl=62 time=48.807 ms
+84 bytes from 10.0.100.100 icmp_seq=4 ttl=62 time=35.171 ms
+84 bytes from 10.0.100.100 icmp_seq=5 ttl=62 time=112.471 ms
+84 bytes from 10.0.100.100 icmp_seq=6 ttl=62 time=38.111 ms
+84 bytes from 10.0.100.100 icmp_seq=7 ttl=62 time=37.690 ms
+84 bytes from 10.0.100.100 icmp_seq=8 ttl=62 time=39.149 ms
+84 bytes from 10.0.100.100 icmp_seq=9 ttl=62 time=36.200 ms
+84 bytes from 10.0.100.100 icmp_seq=10 ttl=62 time=33.186 ms
+
+Client-RU> trace 10.0.100.100
+trace to 10.0.100.100, 8 hops max, press Ctrl+C to stop
+ 1   198.51.100.1   4.020 ms  7.188 ms  4.303 ms
+ 2   100.64.1.1   18.684 ms  15.977 ms  27.228 ms
+ 3     *  *  *
+ 4     *  *  *
+ 5     *  *  *
+ 6     *  *  *
+ 7     *  *  *
+ 8     *  *  *
+
+Client-RU> ping 10.0.100.1 
+
+10.0.100.1 icmp_seq=1 timeout
+84 bytes from 10.0.100.1 icmp_seq=2 ttl=62 time=39.498 ms
+84 bytes from 10.0.100.1 icmp_seq=3 ttl=62 time=52.966 ms
+84 bytes from 10.0.100.1 icmp_seq=4 ttl=62 time=50.009 ms
+84 bytes from 10.0.100.1 icmp_seq=5 ttl=62 time=74.342 ms
+
+Client-RU> ping 10.0.100.2 
+
+84 bytes from 10.0.100.2 icmp_seq=1 ttl=61 time=47.604 ms
+84 bytes from 10.0.100.2 icmp_seq=2 ttl=61 time=49.525 ms
+84 bytes from 10.0.100.2 icmp_seq=3 ttl=61 time=72.760 ms
+84 bytes from 10.0.100.2 icmp_seq=4 ttl=61 time=45.692 ms
+84 bytes from 10.0.100.2 icmp_seq=5 ttl=61 time=66.895 ms
+
+Client-RU> trace 10.0.100.1
+trace to 10.0.100.1, 8 hops max, press Ctrl+C to stop
+ 1   198.51.100.1   4.923 ms  5.723 ms  5.486 ms
+ 2   100.64.1.1   15.430 ms  19.398 ms  23.496 ms
+ 3     *  *  *
+ 4     *  *  *
+ 5     *  *  *
+ 6     *  *  *
+ 7     *  *  *
+ 8     *  *  *
+
+Client-RU> trace 10.0.100.2
+trace to 10.0.100.2, 8 hops max, press Ctrl+C to stop
+ 1   198.51.100.1   4.581 ms  10.913 ms  23.879 ms
+ 2   192.0.2.1   95.982 ms  22.298 ms  15.849 ms
+ 3   100.64.11.1   123.263 ms  39.145 ms  25.889 ms
+ 4     *  *  *
+ 5     *  *  *
+ 6     *  *  *
+ 7     *  *  *
+ 8     *  *  *
+
+! B1/2 отказ сервиса (снятие VIP)
+
+Client-RU> ping 10.0.100.100 
+
+84 bytes from 10.0.100.100 icmp_seq=1 ttl=61 time=57.107 ms
+84 bytes from 10.0.100.100 icmp_seq=2 ttl=61 time=60.402 ms
+84 bytes from 10.0.100.100 icmp_seq=3 ttl=61 time=52.824 ms
+84 bytes from 10.0.100.100 icmp_seq=4 ttl=61 time=59.189 ms
+84 bytes from 10.0.100.100 icmp_seq=5 ttl=61 time=59.340 ms
+
+Client-RU> ping 10.0.100.2  
+
+84 bytes from 10.0.100.2 icmp_seq=1 ttl=61 time=101.741 ms
+84 bytes from 10.0.100.2 icmp_seq=2 ttl=61 time=49.708 ms
+84 bytes from 10.0.100.2 icmp_seq=3 ttl=61 time=56.900 ms
+84 bytes from 10.0.100.2 icmp_seq=4 ttl=61 time=51.718 ms
+84 bytes from 10.0.100.2 icmp_seq=5 ttl=61 time=89.400 ms
+
+Client-RU> ping 10.0.100.1
+
+84 bytes from 10.0.100.1 icmp_seq=1 ttl=62 time=38.886 ms
+84 bytes from 10.0.100.1 icmp_seq=2 ttl=62 time=36.408 ms
+84 bytes from 10.0.100.1 icmp_seq=3 ttl=62 time=70.507 ms
+84 bytes from 10.0.100.1 icmp_seq=4 ttl=62 time=55.013 ms
+84 bytes from 10.0.100.1 icmp_seq=5 ttl=62 time=36.374 ms
+
+! B1/2 отказ сервиса (снятие VIP+Unicast)
+
+Client-RU> ping 10.0.100.100
+
+84 bytes from 10.0.100.100 icmp_seq=1 ttl=61 time=66.646 ms
+84 bytes from 10.0.100.100 icmp_seq=2 ttl=61 time=48.817 ms
+84 bytes from 10.0.100.100 icmp_seq=3 ttl=61 time=66.547 ms
+84 bytes from 10.0.100.100 icmp_seq=4 ttl=61 time=193.951 ms
+84 bytes from 10.0.100.100 icmp_seq=5 ttl=61 time=44.028 ms
+
+Client-RU> ping 10.0.100.2  
+
+84 bytes from 10.0.100.2 icmp_seq=1 ttl=61 time=43.912 ms
+84 bytes from 10.0.100.2 icmp_seq=2 ttl=61 time=62.783 ms
+84 bytes from 10.0.100.2 icmp_seq=3 ttl=61 time=41.495 ms
+84 bytes from 10.0.100.2 icmp_seq=4 ttl=61 time=59.328 ms
+84 bytes from 10.0.100.2 icmp_seq=5 ttl=61 time=139.340 ms
+
+Client-RU> ping 10.0.100.1
+
+*198.51.100.1 icmp_seq=1 ttl=64 time=4.939 ms (ICMP type:3, code:0, Destination network unreachable)
+*198.51.100.1 icmp_seq=2 ttl=64 time=8.824 ms (ICMP type:3, code:0, Destination network unreachable)
+*198.51.100.1 icmp_seq=3 ttl=64 time=4.465 ms (ICMP type:3, code:0, Destination network unreachable)
+*198.51.100.1 icmp_seq=4 ttl=64 time=7.609 ms (ICMP type:3, code:0, Destination network unreachable)
+*198.51.100.1 icmp_seq=5 ttl=64 time=6.133 ms (ICMP type:3, code:0, Destination network unreachable)
+
+! B5 Полный отказ сайта RU 
+
+
+
 ```
 
 </details>
@@ -1810,6 +2668,156 @@ rtt min/avg/max/mdev = 36.340/39.744/43.222/2.810 ms, pipe 3, ipg/ewma 13.305/41
 <summary>Host-RU</summary>
 
 ```
+! Исходное состояние
+
+Host-RU#show vrf GAME 
+   VRF        Protocols       State         Interfaces         
+---------- --------------- ---------------- -------------------
+   GAME       IPv4            routing       Lo100, Lo101, Vl666
+   GAME       IPv6            no routing                       
+
+Host-RU#show ip bgp summary vrf GAME
+BGP summary information for VRF GAME
+Router identifier 10.0.66.11, local AS number 65301
+Neighbor Status Codes: m - Under maintenance
+  Neighbor  V AS           MsgRcvd   MsgSent  InQ OutQ  Up/Down State   PfxRcd PfxAcc
+  10.0.66.2 4 65111           3166      3181    0    0 00:47:00 Estab   0      0
+  10.0.66.3 4 65112           3141      3202    0    0 00:47:00 Estab   0      0
+
+Host-RU#show ip route vrf GAME
+
+VRF: GAME
+Codes: C - connected, S - static, K - kernel, 
+       O - OSPF, IA - OSPF inter area, E1 - OSPF external type 1,
+       E2 - OSPF external type 2, N1 - OSPF NSSA external type 1,
+       N2 - OSPF NSSA external type2, B - Other BGP Routes,
+       B I - iBGP, B E - eBGP, R - RIP, I L1 - IS-IS level 1,
+       I L2 - IS-IS level 2, O3 - OSPFv3, A B - BGP Aggregate,
+       A O - OSPF Summary, NG - Nexthop Group Static Route,
+       V - VXLAN Control Service, M - Martian,
+       DH - DHCP client installed default route,
+       DP - Dynamic Policy Route, L - VRF Leaked,
+       G  - gRIBI, RC - Route Cache Route
+
+Gateway of last resort:
+ S        0.0.0.0/0 [1/0] via 10.0.66.1, Vlan666
+
+ C        10.0.66.0/24 is directly connected, Vlan666
+ C        10.0.100.1/32 is directly connected, Loopback101
+ C        10.0.100.100/32 is directly connected, Loopback100
+
+Host-RU#show ip bgp vrf GAME
+BGP routing table information for VRF GAME
+Router identifier 10.0.66.11, local AS number 65301
+Route status codes: s - suppressed contributor, * - valid, > - active, E - ECMP head, e - ECMP
+                    S - Stale, c - Contributing to ECMP, b - backup, L - labeled-unicast
+                    % - Pending BGP convergence
+Origin codes: i - IGP, e - EGP, ? - incomplete
+RPKI Origin Validation codes: V - valid, I - invalid, U - unknown
+AS Path Attributes: Or-ID - Originator ID, C-LST - Cluster List, LL Nexthop - Link Local Nexthop
+
+          Network                Next Hop              Metric  AIGP       LocPref Weight  Path
+ * >      10.0.100.1/32          -                     -       -          -       0       i
+ * >      10.0.100.100/32        -                     -       -          -       0       i
+
+! B1/2: отказ сервиса (снятие VIP+unicast)
+
+Host-RU(config-if-Lo100)#shu
+Host-RU(config-if-Lo100)#
+Oct 20 10:00:05 Host-RU Ebra: %LINEPROTO-5-UPDOWN: Line protocol on Interface Loopback100 (VIP_ANYCAST), changed state to down
+Host-RU(config-if-Lo100)#int lo101
+Host-RU(config-if-Lo101)#shu
+Host-RU(config-if-Lo101)#
+Oct 20 10:00:10 Host-RU Ebra: %LINEPROTO-5-UPDOWN: Line protocol on Interface Loopback101 (VIP_UNICAST_RU), changed state to down
+
+Host-RU(config-if-Lo101)#show ip bgp vrf GAME
+BGP routing table information for VRF GAME
+Router identifier 10.0.66.11, local AS number 65301
+Route status codes: s - suppressed contributor, * - valid, > - active, E - ECMP head, e - ECMP
+                    S - Stale, c - Contributing to ECMP, b - backup, L - labeled-unicast
+                    % - Pending BGP convergence
+Origin codes: i - IGP, e - EGP, ? - incomplete
+RPKI Origin Validation codes: V - valid, I - invalid, U - unknown
+AS Path Attributes: Or-ID - Originator ID, C-LST - Cluster List, LL Nexthop - Link Local Nexthop
+
+          Network                Next Hop              Metric  AIGP       LocPref Weight  Path
+
+Host-RU(config-if-Lo101)#show ip bgp summary vrf GAME
+BGP summary information for VRF GAME
+Router identifier 10.0.66.11, local AS number 65301
+Neighbor Status Codes: m - Under maintenance
+  Neighbor  V AS           MsgRcvd   MsgSent  InQ OutQ  Up/Down State   PfxRcd PfxAcc
+  10.0.66.2 4 65111           3370      3392    0    0 00:55:45 Estab   0      0
+  10.0.66.3 4 65112           3346      3411    0    0 00:55:45 Estab   0      0
+
+! B3/B4: поведение Port-Channel при отказе Leaf или линка
+
+Leaf1-RU(config)#int e3
+Leaf1-RU(config-if-Et3)#shu
+Leaf1-RU(config-if-Et3)#
+Oct 20 10:02:00 Leaf1-RU Ebra: %LINEPROTO-5-UPDOWN: Line protocol on Interface Ethernet3 (TO_Host-RU_Eth1), changed state to down
+Leaf1-RU(config-if-Et3)#
+Oct 20 10:02:00 Leaf1-RU Ebra: %LINEPROTO-5-UPDOWN: Line protocol on Interface Port-Channel1 (HOST-RU_ESI), changed state to down
+Leaf1-RU(config-if-Et3)#
+Oct 20 10:02:00 Leaf1-RU Lag: %LAG-5-MEMBER_REMOVED: Interface Ethernet3 (TO_Host-RU_Eth1) has left Port-Channel1 (HOST-RU_ESI) due to: link down in LACP negotiation
+Leaf1-RU(config-if-Et3)#
+Oct 20 10:02:01 Leaf1-RU Stp: %SPANTREE-6-STABLE_CHANGE: Stp state is now not stable
+Leaf1-RU(config-if-Et3)#
+Oct 20 10:02:01 Leaf1-RU Stp: %SPANTREE-6-INTERFACE_DEL: Interface Port-Channel1 has been removed from instance Vl666
+Leaf1-RU(config-if-Et3)#
+Oct 20 10:02:01 Leaf1-RU Stp: %SPANTREE-6-INTERFACE_DEL: Interface Port-Channel1 has been removed from instance Vl777
+
+Host-RU(config)#show port-channel dense
+
+                 Flags                                                         
+------------------------ ---------------------------- -------------------------
+  a - LACP Active          p - LACP Passive           * - static fallback      
+  F - Fallback enabled     f - Fallback configured    ^ - individual fallback  
+  U - In Use               D - Down                                            
+  + - In-Sync              - - Out-of-Sync            i - incompatible with agg
+  P - bundled in Po        s - suspended              G - Aggregable           
+  I - Individual           S - ShortTimeout           w - wait for agg         
+  E - Inactive. The number of configured port channels exceeds the config limit
+   M - Exceeds maximum weight
+
+Number of channels in use: 1
+Number of aggregators: 1
+
+   Port-Channel       Protocol    Ports           
+------------------ -------------- ----------------
+   Po1(U)             LACP(a)     Et1(D) Et2(PG+) 
+
+Host-RU(config)#sh lacp peer 
+State: A = Active, P = Passive; S=ShortTimeout, L=LongTimeout;
+       G = Aggregable, I = Individual; s+=InSync, s-=OutOfSync;
+       C = Collecting, X = state machine expired,
+       D = Distributing, d = default neighbor state
+                 |                        Partner                              
+ Port    Status  | Sys-id                    Port#   State     OperKey  PortPri
+------ ----------|------------------------- ------- --------- --------- -------
+Port Channel Port-Channel1:                                            
+ Et2     Bundled | 8000,00-11-00-00-00-01      131   ALGs+CD    0x0001    32768
+
+Host-RU(config)#show ip bgp summary vrf GAME
+BGP summary information for VRF GAME
+Router identifier 10.0.66.11, local AS number 65301
+Neighbor Status Codes: m - Under maintenance
+  Neighbor  V AS           MsgRcvd   MsgSent  InQ OutQ  Up/Down State   PfxRcd PfxAcc
+  10.0.66.2 4 65111           3420      3443    0    0 00:57:56 Estab   0      0
+  10.0.66.3 4 65112           3396      3462    0    0 00:57:56 Estab   0      0
+
+Host-RU(config)#ping vrf GAME 10.0.66.1 source 10.0.100.1
+PING 10.0.66.1 (10.0.66.1) from 10.0.100.1 : 72(100) bytes of data.
+80 bytes from 10.0.66.1: icmp_seq=1 ttl=64 time=106 ms
+80 bytes from 10.0.66.1: icmp_seq=2 ttl=64 time=113 ms
+80 bytes from 10.0.66.1: icmp_seq=3 ttl=64 time=127 ms
+80 bytes from 10.0.66.1: icmp_seq=4 ttl=64 time=128 ms
+80 bytes from 10.0.66.1: icmp_seq=5 ttl=64 time=127 ms
+
+--- 10.0.66.1 ping statistics ---
+5 packets transmitted, 5 received, 0% packet loss, time 51ms
+rtt min/avg/max/mdev = 106.601/120.708/128.338/9.133 ms, pipe 5, ipg/ewma 12.781/114.191 ms
+
 ```
 
 </details>
@@ -1818,6 +2826,262 @@ rtt min/avg/max/mdev = 36.340/39.744/43.222/2.810 ms, pipe 3, ipg/ewma 13.305/41
 <summary>Leaf1-RU</summary>
 
 ```
+! Исходное состояние: сессия с хостом и VIP
+
+Leaf1-RU#show ip bgp summary vrf GAME
+BGP summary information for VRF GAME
+Router identifier 192.168.0.11, local AS number 65111
+Neighbor Status Codes: m - Under maintenance
+  Neighbor   V AS           MsgRcvd   MsgSent  InQ OutQ  Up/Down State   PfxRcd PfxAcc
+  10.0.66.11 4 65301           3423      3494    0    0 01:00:22 Estab   2      2
+  100.64.1.0 4 65511           3516      3532    0    0 00:29:56 Estab   3      3
+  100.64.2.0 4 65512           3590      3608    0    0 01:00:31 Estab   3      3
+
+Leaf1-RU#show ip bgp 10.0.100.0/24 longer-prefixes vrf GAME 
+BGP routing table information for VRF GAME
+Router identifier 192.168.0.11, local AS number 65111
+Route status codes: s - suppressed contributor, * - valid, > - active, E - ECMP head, e - ECMP
+                    S - Stale, c - Contributing to ECMP, b - backup, L - labeled-unicast
+                    % - Pending BGP convergence
+Origin codes: i - IGP, e - EGP, ? - incomplete
+RPKI Origin Validation codes: V - valid, I - invalid, U - unknown
+AS Path Attributes: Or-ID - Originator ID, C-LST - Cluster List, LL Nexthop - Link Local Nexthop
+
+          Network                Next Hop              Metric  AIGP       LocPref Weight  Path
+ * >      10.0.100.1/32          10.0.66.11            0       -          100     0       65301 i
+ *  Ec    10.0.100.1/32          192.168.1.12          0       -          100     0       65101 65112 65301 i
+ *  ec    10.0.100.1/32          192.168.1.12          0       -          100     0       65101 65112 65301 i
+ * >      10.0.100.2/32          100.64.1.0            0       -          200     0       65511 65521 65200 65302 i
+ *        10.0.100.2/32          100.64.2.0            0       -          100     0       65512 65522 65521 65200 65302 i
+ *  Ec    10.0.100.2/32          192.168.1.12          0       -          100     0       65101 65112 65511 65521 65200 65302 i
+ *  ec    10.0.100.2/32          192.168.1.12          0       -          100     0       65101 65112 65511 65521 65200 65302 i
+ * >      10.0.100.100/32        10.0.66.11            0       -          100     0       65301 i
+ *  Ec    10.0.100.100/32        192.168.1.12          0       -          100     0       65101 65112 65301 i
+ *  ec    10.0.100.100/32        192.168.1.12          0       -          100     0       65101 65112 65301 i
+
+Leaf1-RU#show ip route vrf GAME 10.0.100.0/24 longer-prefixes
+
+VRF: GAME
+Codes: C - connected, S - static, K - kernel, 
+       O - OSPF, IA - OSPF inter area, E1 - OSPF external type 1,
+       E2 - OSPF external type 2, N1 - OSPF NSSA external type 1,
+       N2 - OSPF NSSA external type2, B - Other BGP Routes,
+       B I - iBGP, B E - eBGP, R - RIP, I L1 - IS-IS level 1,
+       I L2 - IS-IS level 2, O3 - OSPFv3, A B - BGP Aggregate,
+       A O - OSPF Summary, NG - Nexthop Group Static Route,
+       V - VXLAN Control Service, M - Martian,
+       DH - DHCP client installed default route,
+       DP - Dynamic Policy Route, L - VRF Leaked,
+       G  - gRIBI, RC - Route Cache Route
+
+ B E      10.0.100.1/32 [20/0] via 10.0.66.11, Vlan666
+ B E      10.0.100.2/32 [20/0] via 100.64.1.0, Ethernet7
+ B E      10.0.100.100/32 [20/0] via 10.0.66.11, Vlan666
+
+Leaf1-RU#show bgp evpn route-type ip-prefix ipv4
+BGP routing table information for VRF default
+Router identifier 192.168.0.11, local AS number 65111
+Route status codes: * - valid, > - active, S - Stale, E - ECMP head, e - ECMP
+                    c - Contributing to ECMP, % - Pending BGP convergence
+Origin codes: i - IGP, e - EGP, ? - incomplete
+AS Path Attributes: Or-ID - Originator ID, C-LST - Cluster List, LL Nexthop - Link Local Nexthop
+
+          Network                Next Hop              Metric  LocPref Weight  Path
+ * >      RD: 192.168.0.11:10066 ip-prefix 0.0.0.0/0
+                                 -                     -       200     0       65511 i
+ *        RD: 192.168.0.11:10066 ip-prefix 0.0.0.0/0
+                                 -                     -       100     0       65512 i
+ * >Ec    RD: 192.168.0.12:10066 ip-prefix 0.0.0.0/0
+                                 192.168.1.12          -       100     0       65101 65112 65511 i
+ *  ec    RD: 192.168.0.12:10066 ip-prefix 0.0.0.0/0
+                                 192.168.1.12          -       100     0       65101 65112 65511 i
+ * >Ec    RD: 192.168.0.12:10077 ip-prefix 0.0.0.0/0
+                                 192.168.1.12          -       100     0       65101 65112 65512 i
+ *  ec    RD: 192.168.0.12:10077 ip-prefix 0.0.0.0/0
+                                 192.168.1.12          -       100     0       65101 65112 65512 i
+ * >      RD: 192.168.0.11:10066 ip-prefix 10.0.66.0/24
+                                 -                     -       -       0       i
+ * >Ec    RD: 192.168.0.12:10066 ip-prefix 10.0.66.0/24
+                                 192.168.1.12          -       100     0       65101 65112 i
+ *  ec    RD: 192.168.0.12:10066 ip-prefix 10.0.66.0/24
+                                 192.168.1.12          -       100     0       65101 65112 i
+ * >      RD: 192.168.0.11:10077 ip-prefix 10.0.77.0/24
+                                 -                     -       -       0       i
+ * >Ec    RD: 192.168.0.12:10077 ip-prefix 10.0.77.0/24
+                                 192.168.1.12          -       100     0       65101 65112 i
+ *  ec    RD: 192.168.0.12:10077 ip-prefix 10.0.77.0/24
+                                 192.168.1.12          -       100     0       65101 65112 i
+ * >      RD: 192.168.0.11:10077 ip-prefix 10.0.78.10/32
+                                 -                     -       -       0       i
+ * >      RD: 192.168.0.11:10066 ip-prefix 10.0.100.1/32
+                                 -                     -       100     0       65301 i
+ * >Ec    RD: 192.168.0.12:10066 ip-prefix 10.0.100.1/32
+                                 192.168.1.12          -       100     0       65101 65112 65301 i
+ *  ec    RD: 192.168.0.12:10066 ip-prefix 10.0.100.1/32
+                                 192.168.1.12          -       100     0       65101 65112 65301 i
+ * >      RD: 192.168.0.11:10066 ip-prefix 10.0.100.2/32
+                                 -                     -       200     0       65511 65521 65200 65302 i
+ *        RD: 192.168.0.11:10066 ip-prefix 10.0.100.2/32
+                                 -                     -       100     0       65512 65522 65521 65200 65302 i
+ * >Ec    RD: 192.168.0.12:10066 ip-prefix 10.0.100.2/32
+                                 192.168.1.12          -       100     0       65101 65112 65511 65521 65200 65302 i
+ *  ec    RD: 192.168.0.12:10066 ip-prefix 10.0.100.2/32
+                                 192.168.1.12          -       100     0       65101 65112 65511 65521 65200 65302 i
+ * >      RD: 192.168.0.11:10066 ip-prefix 10.0.100.100/32
+                                 -                     -       100     0       65301 i
+ * >Ec    RD: 192.168.0.12:10066 ip-prefix 10.0.100.100/32
+                                 192.168.1.12          -       100     0       65101 65112 65301 i
+ *  ec    RD: 192.168.0.12:10066 ip-prefix 10.0.100.100/32
+                                 192.168.1.12          -       100     0       65101 65112 65301 i
+
+! B1: VIP исчезает после shutdown Loopback (100/101) на хосте
+
+Leaf1-RU#show ip bgp vrf GAME 10.0.100.100/32
+% Invalid input
+Leaf1-RU#show ip bgp 10.0.100.100/32 vrf GAME 
+BGP routing table information for VRF GAME
+Router identifier 192.168.0.11, local AS number 65111
+Leaf1-RU#show ip bgp 10.0.100.1/32 vrf GAME 
+BGP routing table information for VRF GAME
+Router identifier 192.168.0.11, local AS number 65111
+
+! B4: отказ линка Host-Leaf
+
+Leaf1-RU#conf t
+Leaf1-RU(config)#
+Oct 20 11:16:52 Leaf1-RU ConfigAgent: %SYS-5-CONFIG_E: Enter configuration mode from console by admin on con0 (0.0.0.0)
+Leaf1-RU(config)#int e3
+Leaf1-RU(config-if-Et3)#shu
+Leaf1-RU(config-if-Et3)#
+Oct 20 11:16:57 Leaf1-RU Ebra: %LINEPROTO-5-UPDOWN: Line protocol on Interface Ethernet3 (TO_Host-RU_Eth1), changed state to down
+Leaf1-RU(config-if-Et3)#
+Oct 20 11:16:57 Leaf1-RU Ebra: %LINEPROTO-5-UPDOWN: Line protocol on Interface Port-Channel1 (HOST-RU_ESI), changed state to down
+Leaf1-RU(config-if-Et3)#
+Oct 20 11:16:58 Leaf1-RU Stp: %SPANTREE-6-STABLE_CHANGE: Stp state is now not stable
+Leaf1-RU(config-if-Et3)#
+Oct 20 11:16:58 Leaf1-RU Lag: %LAG-5-MEMBER_REMOVED: Interface Ethernet3 (TO_Host-RU_Eth1) has left Port-Channel1 (HOST-RU_ESI) due to: link down in LACP negotiation
+Leaf1-RU(config-if-Et3)#
+Oct 20 11:16:58 Leaf1-RU Stp: %SPANTREE-6-INTERFACE_DEL: Interface Port-Channel1 has been removed from instance Vl666
+Leaf1-RU(config-if-Et3)#
+Oct 20 11:16:58 Leaf1-RU Stp: %SPANTREE-6-INTERFACE_DEL: Interface Port-Channel1 has been removed from instance Vl777
+
+Leaf1-RU(config-if-Et3)#show port-channel dens
+
+                 Flags                                                         
+------------------------ ---------------------------- -------------------------
+  a - LACP Active          p - LACP Passive           * - static fallback      
+  F - Fallback enabled     f - Fallback configured    ^ - individual fallback  
+  U - In Use               D - Down                                            
+  + - In-Sync              - - Out-of-Sync            i - incompatible with agg
+  P - bundled in Po        s - suspended              G - Aggregable           
+  I - Individual           S - ShortTimeout           w - wait for agg         
+  E - Inactive. The number of configured port channels exceeds the config limit
+   M - Exceeds maximum weight
+
+Number of channels in use: 0
+Number of aggregators: 1
+
+   Port-Channel       Protocol    Ports  
+------------------ -------------- -------
+   Po1(D)             LACP(a)     Et3(D) 
+
+Leaf1-RU(config-if-Et3)#show bgp evpn route-type ethernet-segment
+BGP routing table information for VRF default
+Router identifier 192.168.0.11, local AS number 65111
+Route status codes: * - valid, > - active, S - Stale, E - ECMP head, e - ECMP
+                    c - Contributing to ECMP, % - Pending BGP convergence
+Origin codes: i - IGP, e - EGP, ? - incomplete
+AS Path Attributes: Or-ID - Originator ID, C-LST - Cluster List, LL Nexthop - Link Local Nexthop
+
+          Network                Next Hop              Metric  LocPref Weight  Path
+ * >Ec    RD: 192.168.1.12:1 ethernet-segment 0011:0000:0000:0000:0001 192.168.1.12
+                                 192.168.1.12          -       100     0       65101 65112 i
+ *  ec    RD: 192.168.1.12:1 ethernet-segment 0011:0000:0000:0000:0001 192.168.1.12
+                                 192.168.1.12          -       100     0       65101 65112 i
+
+Leaf1-RU(config-if-Et3)#show bgp evpn route-type auto-discovery
+BGP routing table information for VRF default
+Router identifier 192.168.0.11, local AS number 65111
+Route status codes: * - valid, > - active, S - Stale, E - ECMP head, e - ECMP
+                    c - Contributing to ECMP, % - Pending BGP convergence
+Origin codes: i - IGP, e - EGP, ? - incomplete
+AS Path Attributes: Or-ID - Originator ID, C-LST - Cluster List, LL Nexthop - Link Local Nexthop
+
+          Network                Next Hop              Metric  LocPref Weight  Path
+ * >Ec    RD: 192.168.0.12:10666 auto-discovery 0 0011:0000:0000:0000:0001
+                                 192.168.1.12          -       100     0       65101 65112 i
+ *  ec    RD: 192.168.0.12:10666 auto-discovery 0 0011:0000:0000:0000:0001
+                                 192.168.1.12          -       100     0       65101 65112 i
+ * >Ec    RD: 192.168.0.12:10777 auto-discovery 0 0011:0000:0000:0000:0001
+                                 192.168.1.12          -       100     0       65101 65112 i
+ *  ec    RD: 192.168.0.12:10777 auto-discovery 0 0011:0000:0000:0000:0001
+                                 192.168.1.12          -       100     0       65101 65112 i
+ * >Ec    RD: 192.168.1.12:1 auto-discovery 0011:0000:0000:0000:0001
+                                 192.168.1.12          -       100     0       65101 65112 i
+ *  ec    RD: 192.168.1.12:1 auto-discovery 0011:0000:0000:0000:0001
+                                 192.168.1.12          -       100     0       65101 65112 i
+
+Leaf1-RU(config-if-Et3)#show ip bgp summary vrf GAME
+BGP summary information for VRF GAME
+Router identifier 192.168.0.11, local AS number 65111
+Neighbor Status Codes: m - Under maintenance
+  Neighbor   V AS           MsgRcvd   MsgSent  InQ OutQ  Up/Down State   PfxRcd PfxAcc
+  10.0.66.11 4 65301           5122      5185    0   38 02:12:55 Estab   2      2
+  100.64.1.0 4 65511           5209      5231    0   19 01:42:29 Estab   3      3
+  100.64.2.0 4 65512           5279      5305    0   19 02:13:04 Estab   3      3
+
+! B6: счётчики BUM в VLAN 666
+
+Leaf1-RU#show mac address-table vlan 666
+          Mac Address Table
+------------------------------------------------------------------
+
+Vlan    Mac Address       Type        Ports      Moves   Last Move
+----    -----------       ----        -----      -----   ---------
+ 666    001c.7300.0099    STATIC      Cpu
+ 666    5000.00ba.c6f8    DYNAMIC     Po1        2       0:01:30 ago
+Total Mac Addresses for this criterion: 2
+
+          Multicast Mac Address Table
+------------------------------------------------------------------
+
+Vlan    Mac Address       Type        Ports
+----    -----------       ----        -----
+Total Mac Addresses for this criterion: 0
+
+Leaf1-RU#show interfaces Ethernet3 counters
+Port                           InOctets     InUcastPkts     InMcastPkts     InBcastPkts
+Et3                             1105312           11394             939              14
+
+Port                          OutOctets    OutUcastPkts    OutMcastPkts    OutBcastPkts
+Et3                             2047358           11127           13742             837
+
+Leaf1-RU#show interfaces Port-Channel1 counters
+Port                           InOctets     InUcastPkts     InMcastPkts     InBcastPkts
+Po1                             1103276           11397             922              14
+
+Port                          OutOctets    OutUcastPkts    OutMcastPkts    OutBcastPkts
+Po1                             2045955           11131           13730             839
+
+Leaf1-RU#show interfaces counters errors
+Port               FCS    Align   Symbol       Rx    Runts   Giants       Tx
+Et1                  0        0        0        0        0        0        0
+Et2                  0        0        0        0        0        0        0
+Et3                  0        0        0        0        0        0        0
+Et4                  0        0        0        0        0        0        0
+Et5                  0        0        0        0        0        0        0
+Et6                  0        0        0        0        0        0        0
+Et7                  0        0        0        0        0        0        0
+Et8                  0        0        0        0        0        0        0
+Ma1                  0        0        0        0        0        0        0
+
+Leaf1-RU#show vxlan flood vtep
+          VXLAN Flood VTEP Table
+--------------------------------------------------------------------------------
+
+VLANS                            Ip Address
+-----------------------------   ------------------------------------------------
+666,777                         192.168.1.12  
 ```
 
 </details>
@@ -1826,6 +3090,187 @@ rtt min/avg/max/mdev = 36.340/39.744/43.222/2.810 ms, pipe 3, ipg/ewma 13.305/41
 <summary>Leaf2-RU</summary>
 
 ```
+! B3/B5: поведение Leaf2 после выключения Leaf1-RU
+
+Leaf1-RU#conf t
+iLeaf1-RU(config)#
+Oct 20 11:24:01 Leaf1-RU ConfigAgent: %SYS-5-CONFIG_E: Enter configuration mode from console by admin on con0 (0.0.0.0)
+Leaf1-RU(config)#int e1-2,3,7,8
+Leaf1-RU(config-if-Et1-3,7-8)#shu
+Leaf1-RU(config-if-Et1-3,7-8)#
+Oct 20 11:24:17 Leaf1-RU Ebra: %LINEPROTO-5-UPDOWN: Line protocol on Interface Ethernet1 (TO_Spine1-RU_Eth1), changed state to down
+Leaf1-RU(config-if-Et1-3,7-8)#
+Oct 20 11:24:17 Leaf1-RU Ebra: %LINEPROTO-5-UPDOWN: Line protocol on Interface Ethernet2 (TO_Spine2-RU_Eth1), changed state to down
+Oct 20 11:24:17 Leaf1-RU Ebra: %LINEPROTO-5-UPDOWN: Line protocol on Interface Ethernet3 (TO_Host-RU_Eth1), changed state to down
+Leaf1-RU(config-if-Et1-3,7-8)#
+Oct 20 11:24:17 Leaf1-RU Ebra: %LINEPROTO-5-UPDOWN: Line protocol on Interface Ethernet7 (TO_ISP1-RU_Eth1), changed state to down
+Leaf1-RU(config-if-Et1-3,7-8)#
+Oct 20 11:24:17 Leaf1-RU Bfd: %BFD-5-STATE_CHANGE: peer (vrf:default, ip:fe80::5200:ff:fed7:ee0b, intf:Ethernet1, type:normal) changed state from Up to Down diag None
+Leaf1-RU(config-if-Et1-3,7-8)#
+Oct 20 11:24:17 Leaf1-RU Ebra: %LINEPROTO-5-UPDOWN: Line protocol on Interface Ethernet8 (TO_ISP2-RU_Eth1), changed state to down
+Leaf1-RU(config-if-Et1-3,7-8)#
+Oct 20 11:24:17 Leaf1-RU Bfd: %BFD-5-STATE_CHANGE: peer (vrf:default, ip:fe80::5200:ff:fecb:38c2, intf:Ethernet2, type:normal) changed state from Up to Down diag None
+Leaf1-RU(config-if-Et1-3,7-8)#
+Oct 20 11:24:17 Leaf1-RU Bfd: %BFD-5-STATE_CHANGE: peer (vrf:GAME, ip:100.64.1.0, intf:Ethernet7, type:normal) changed state from Up to Down diag None
+Leaf1-RU(config-if-Et1-3,7-8)#
+Oct 20 11:24:17 Leaf1-RU Ebra: %LINEPROTO-5-UPDOWN: Line protocol on Interface Port-Channel1 (HOST-RU_ESI), changed state to down
+Leaf1-RU(config-if-Et1-3,7-8)#
+Oct 20 11:24:17 Leaf1-RU Bfd: %BFD-5-STATE_CHANGE: peer (vrf:GAME, ip:100.64.2.0, intf:Ethernet8, type:normal) changed state from Up to Down diag None
+Leaf1-RU(config-if-Et1-3,7-8)#
+Oct 20 11:24:18 Leaf1-RU Bgp: %BGP-5-ADJCHANGE: peer fe80::5200:ff:fed7:ee0b%Et1 (VRF default AS 65101) old state Established event Deconfigured new state Idle
+Leaf1-RU(config-if-Et1-3,7-8)#
+Oct 20 11:24:18 Leaf1-RU Bgp: %BGP-5-ADJCHANGE: peer fe80::5200:ff:fecb:38c2%Et2 (VRF default AS 65101) old state Established event Stop new state Idle
+Leaf1-RU(config-if-Et1-3,7-8)#
+Oct 20 11:24:18 Leaf1-RU Bgp: %BGP-3-NOTIFICATION: sent to neighbor fe80::5200:ff:fed7:ee0b%Et1 (VRF default AS 65101) 6/3 (Cease/peer de-configured <Hard Reset>) 0 bytes
+Leaf1-RU(config-if-Et1-3,7-8)#
+Oct 20 11:24:18 Leaf1-RU Bgp: %BGP-5-ADJCHANGE: peer 100.64.1.0 (VRF GAME AS 65511) old state Established event Stop new state Idle
+Leaf1-RU(config-if-Et1-3,7-8)#
+Oct 20 11:24:18 Leaf1-RU Bgp: %BGP-5-ADJCHANGE: peer 100.64.2.0 (VRF GAME AS 65512) old state Established event Stop new state Idle
+Leaf1-RU(config-if-Et1-3,7-8)#
+Oct 20 11:24:18 Leaf1-RU Bgp: %BGP-3-NOTIFICATION: sent to neighbor fe80::5200:ff:fecb:38c2%Et2 (VRF default AS 65101) 6/10 (Cease/BFD down <Hard Reset>) 0 bytes
+Leaf1-RU(config-if-Et1-3,7-8)#
+Oct 20 11:24:18 Leaf1-RU Bgp: %BGP-3-NOTIFICATION: sent to neighbor 100.64.2.0 (VRF GAME AS 65512) 6/10 (Cease/BFD down <Hard Reset>) 0 bytes
+Leaf1-RU(config-if-Et1-3,7-8)#
+Oct 20 11:24:19 Leaf1-RU Bgp: %BGP-3-NOTIFICATION: sent to neighbor 100.64.1.0 (VRF GAME AS 65511) 6/10 (Cease/BFD down <Hard Reset>) 0 bytes
+Leaf1-RU(config-if-Et1-3,7-8)#
+Oct 20 11:24:19 Leaf1-RU Lag: %LAG-5-MEMBER_REMOVED: Interface Ethernet3 (TO_Host-RU_Eth1) has left Port-Channel1 (HOST-RU_ESI) due to: link down in LACP negotiation
+Leaf1-RU(config-if-Et1-3,7-8)#
+Oct 20 11:24:19 Leaf1-RU Stp: %SPANTREE-6-STABLE_CHANGE: Stp state is now not stable
+Leaf1-RU(config-if-Et1-3,7-8)#
+Oct 20 11:24:19 Leaf1-RU Stp: %SPANTREE-6-INTERFACE_DEL: Interface Port-Channel1 has been removed from instance Vl666
+Oct 20 11:24:19 Leaf1-RU Stp: %SPANTREE-6-INTERFACE_DEL: Interface Port-Channel1 has been removed from instance Vl777
+Leaf1-RU(config-if-Et1-3,7-8)#
+Oct 20 11:24:21 Leaf1-RU Bfd: %BFD-5-STATE_CHANGE: peer (vrf:default, ip:192.168.0.1, intf:, srcIp:192.168.0.11, type:multihop) changed state from Up to Down diag CtrlTimeout
+Leaf1-RU(config-if-Et1-3,7-8)#
+Oct 20 11:24:21 Leaf1-RU Bfd: %BFD-5-STATE_CHANGE: peer (vrf:default, ip:192.168.0.2, intf:, srcIp:192.168.0.11, type:multihop) changed state from Up to Down diag CtrlTimeout
+Leaf1-RU(config-if-Et1-3,7-8)#
+Oct 20 11:24:21 Leaf1-RU Bgp: %BGP-5-ADJCHANGE: peer 192.168.0.1 (VRF default AS 65101) old state Established event Stop new state Idle
+Leaf1-RU(config-if-Et1-3,7-8)#
+Oct 20 11:24:21 Leaf1-RU Bgp: %BGP-3-NOTIFICATION: sent to neighbor 192.168.0.1 (VRF default AS 65101) 6/10 (Cease/BFD down <Hard Reset>) 0 bytes
+Leaf1-RU(config-if-Et1-3,7-8)#
+Oct 20 11:24:21 Leaf1-RU Bgp: %BGP-5-ADJCHANGE: peer 192.168.0.2 (VRF default AS 65101) old state Established event Stop new state Idle
+Leaf1-RU(config-if-Et1-3,7-8)#
+Oct 20 11:24:21 Leaf1-RU Bgp: %BGP-3-NOTIFICATION: sent to neighbor 192.168.0.2 (VRF default AS 65101) 6/10 (Cease/BFD down <Hard Reset>) 0 bytes
+Leaf1-RU(config-if-Et1-3,7-8)#
+Oct 20 11:24:24 Leaf1-RU Bgp: %BGP-5-ADJCHANGE: peer 10.0.66.11 (VRF GAME AS 65301) old state Established event Stop new state Idle
+Leaf1-RU(config-if-Et1-3,7-8)#
+Oct 20 11:24:24 Leaf1-RU Bgp: %BGP-3-NOTIFICATION: sent to neighbor 10.0.66.11 (VRF GAME AS 65301) 4/0 (Hold Timer Expired Error/None) 0 bytes
+
+Leaf2-RU#show ip bgp summary vrf GAME
+BGP summary information for VRF GAME
+Router identifier 192.168.0.12, local AS number 65112
+Neighbor Status Codes: m - Under maintenance
+  Neighbor   V AS           MsgRcvd   MsgSent  InQ OutQ  Up/Down State   PfxRcd PfxAcc
+  10.0.66.11 4 65301           5336      5385    0    0 02:21:24 Estab   2      2
+  100.64.1.2 4 65511           5382      5416    0    0 00:43:03 Estab   3      3
+  100.64.2.2 4 65512           5453      5498    0    0 02:21:32 Estab   3      3
+Leaf2-RU#show ip route vrf GAME 10.0.100.0/24 longer-prefixes
+
+VRF: GAME
+Codes: C - connected, S - static, K - kernel, 
+       O - OSPF, IA - OSPF inter area, E1 - OSPF external type 1,
+       E2 - OSPF external type 2, N1 - OSPF NSSA external type 1,
+       N2 - OSPF NSSA external type2, B - Other BGP Routes,
+       B I - iBGP, B E - eBGP, R - RIP, I L1 - IS-IS level 1,
+       I L2 - IS-IS level 2, O3 - OSPFv3, A B - BGP Aggregate,
+       A O - OSPF Summary, NG - Nexthop Group Static Route,
+       V - VXLAN Control Service, M - Martian,
+       DH - DHCP client installed default route,
+       DP - Dynamic Policy Route, L - VRF Leaked,
+       G  - gRIBI, RC - Route Cache Route
+
+ B E      10.0.100.1/32 [20/0] via 10.0.66.11, Vlan666
+ B E      10.0.100.2/32 [20/0] via 100.64.1.2, Ethernet7
+ B E      10.0.100.100/32 [20/0] via 10.0.66.11, Vlan666
+
+Leaf2-RU#show bgp evpn route-type ethernet-segment
+BGP routing table information for VRF default
+Router identifier 192.168.0.12, local AS number 65112
+Route status codes: * - valid, > - active, S - Stale, E - ECMP head, e - ECMP
+                    c - Contributing to ECMP, % - Pending BGP convergence
+Origin codes: i - IGP, e - EGP, ? - incomplete
+AS Path Attributes: Or-ID - Originator ID, C-LST - Cluster List, LL Nexthop - Link Local Nexthop
+
+          Network                Next Hop              Metric  LocPref Weight  Path
+ * >      RD: 192.168.1.12:1 ethernet-segment 0011:0000:0000:0000:0001 192.168.1.12
+                                 -                     -       -       0       i
+
+Leaf2-RU#show bgp evpn route-type auto-discovery
+BGP routing table information for VRF default
+Router identifier 192.168.0.12, local AS number 65112
+Route status codes: * - valid, > - active, S - Stale, E - ECMP head, e - ECMP
+                    c - Contributing to ECMP, % - Pending BGP convergence
+Origin codes: i - IGP, e - EGP, ? - incomplete
+AS Path Attributes: Or-ID - Originator ID, C-LST - Cluster List, LL Nexthop - Link Local Nexthop
+
+          Network                Next Hop              Metric  LocPref Weight  Path
+ * >      RD: 192.168.0.12:10666 auto-discovery 0 0011:0000:0000:0000:0001
+                                 -                     -       -       0       i
+ * >      RD: 192.168.0.12:10777 auto-discovery 0 0011:0000:0000:0000:0001
+                                 -                     -       -       0       i
+ * >      RD: 192.168.1.12:1 auto-discovery 0011:0000:0000:0000:0001
+                                 -                     -       -       0       i
+
+Leaf2-RU#show bgp evpn instance
+EVPN instance: VLAN 666
+  Route distinguisher: 192.168.0.12:10666
+  Route target import: Route-Target-AS:65000:10666
+  Route target export: Route-Target-AS:65000:10666
+  Service interface: VLAN-based
+  Local VXLAN IP address: 192.168.1.12
+  VXLAN: enabled
+  MPLS: disabled
+  Local ethernet segment:
+    ESI: 0011:0000:0000:0000:0001
+      Interface: Port-Channel1
+      Mode: all-active
+      State: up
+      ES-Import RT: 00:11:00:00:00:01
+      Designated forwarder: 192.168.1.12
+EVPN instance: VLAN 777
+  Route distinguisher: 192.168.0.12:10777
+  Route target import: Route-Target-AS:65000:10777
+  Route target export: Route-Target-AS:65000:10777
+  Service interface: VLAN-based
+  Local VXLAN IP address: 192.168.1.12
+  VXLAN: enabled
+  MPLS: disabled
+  Local ethernet segment:
+    ESI: 0011:0000:0000:0000:0001
+      Interface: Port-Channel1
+      Mode: all-active
+      State: up
+      ES-Import RT: 00:11:00:00:00:01
+      Designated forwarder: 192.168.1.12
+
+Leaf2-RU#show port-channel dens
+
+                 Flags                                                         
+------------------------ ---------------------------- -------------------------
+  a - LACP Active          p - LACP Passive           * - static fallback      
+  F - Fallback enabled     f - Fallback configured    ^ - individual fallback  
+  U - In Use               D - Down                                            
+  + - In-Sync              - - Out-of-Sync            i - incompatible with agg
+  P - bundled in Po        s - suspended              G - Aggregable           
+  I - Individual           S - ShortTimeout           w - wait for agg         
+  E - Inactive. The number of configured port channels exceeds the config limit
+   M - Exceeds maximum weight
+
+Number of channels in use: 1
+Number of aggregators: 1
+
+   Port-Channel       Protocol    Ports    
+------------------ -------------- ---------
+   Po1(U)             LACP(a)     Et3(PG+) 
+
+Leaf2-RU#ping vrf GAME 10.0.66.11 source 10.0.66.1
+PING 10.0.66.11 (10.0.66.11) from 10.0.66.1 : 72(100) bytes of data.
+80 bytes from 10.0.66.11: icmp_seq=1 ttl=64 time=51.2 ms
+80 bytes from 10.0.66.11: icmp_seq=2 ttl=64 time=45.7 ms
+80 bytes from 10.0.66.11: icmp_seq=3 ttl=64 time=55.6 ms
+80 bytes from 10.0.66.11: icmp_seq=4 ttl=64 time=55.8 ms
+80 bytes from 10.0.66.11: icmp_seq=5 ttl=64 time=59.3 ms
+
 ```
 
 </details>
@@ -1834,21 +3279,7 @@ rtt min/avg/max/mdev = 36.340/39.744/43.222/2.810 ms, pipe 3, ipg/ewma 13.305/41
 
 #### <u>**Site-EU**</u>
 
-<details>
-<summary>Client-EU</summary>
-
-```
-```
-
-</details>
-
-<details>
-<summary>Host-EU</summary>
-
-```
-```
-
-</details>
+Аналогично Site-RU
 
 ---
 

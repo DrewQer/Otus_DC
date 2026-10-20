@@ -1,0 +1,117 @@
+! Command: show running-config
+! device: ISP2-EU (vEOS-lab, EOS-4.29.2F)
+!
+! boot system flash:/vEOS-lab.swi
+!
+no aaa root
+!
+transceiver qsfp default-mode 4x10G
+!
+service routing protocols model multi-agent
+!
+logging buffered 64000 informational
+logging console informational
+logging synchronous level all
+!
+hostname ISP2-EU
+!
+spanning-tree mode none
+!
+interface Ethernet1
+   description TO_Leaf1-EU_Eth8
+   no switchport
+   ip address 100.64.12.0/31
+!
+interface Ethernet2
+   description TO_Leaf2-EU_Eth8
+   no switchport
+   ip address 100.64.12.2/31
+!
+interface Ethernet3
+   description TO_ISP1-EU_Eth3
+   no switchport
+   ip address 192.0.2.7/31
+!
+interface Ethernet4
+   description TO_ISP2-RU_Eth4
+   no switchport
+   ip address 192.0.2.3/31
+!
+interface Ethernet5
+   description TO_Leaf2-EU_Eth5_TEST
+   no switchport
+   ip address 100.64.112.0/31
+!
+interface Ethernet6
+   no switchport
+!
+interface Ethernet7
+   no switchport
+!
+interface Ethernet8
+   no switchport
+!
+interface Management1
+!
+ip routing
+!
+ip prefix-list PL-FROM-LEAF seq 20 permit 10.0.100.100/32
+ip prefix-list PL-FROM-LEAF seq 30 permit 10.0.100.2/32
+ip prefix-list PL-FROM-LEAF-TEST seq 10 permit 10.0.178.10/32
+ip prefix-list PL-TO-LEAF seq 10 permit 10.0.66.0/24
+ip prefix-list PL-TO-LEAF seq 20 permit 10.0.100.1/32
+!
+route-map RM-DEFAULT-ORIGIN permit 10
+   set origin igp
+!
+route-map RM-DENY-ALL deny 10
+!
+route-map RM-FROM-LEAF permit 10
+   match ip address prefix-list PL-FROM-LEAF
+!
+route-map RM-FROM-LEAF-TEST permit 10
+   match ip address prefix-list PL-FROM-LEAF-TEST
+!
+route-map RM-TO-LEAF permit 10
+   match ip address prefix-list PL-TO-LEAF
+!
+router bfd
+   interval 1000 min-rx 1000 multiplier 5 default
+!
+router bgp 65522
+   router-id 192.0.2.3
+   no bgp default ipv4-unicast
+   timers bgp 3 9
+   distance bgp 20 200 200
+   maximum-paths 4 ecmp 4
+   neighbor LEAF peer group
+   neighbor LEAF remote-as 65200
+   neighbor LEAF bfd
+   neighbor LEAF default-originate route-map RM-DEFAULT-ORIGIN
+   neighbor LEAF maximum-routes 100
+   neighbor LEAF-TEST peer group
+   neighbor LEAF-TEST remote-as 65200
+   neighbor LEAF-TEST bfd
+   neighbor LEAF-TEST default-originate route-map RM-DEFAULT-ORIGIN
+   neighbor LEAF-TEST maximum-routes 10
+   neighbor RING peer group
+   neighbor RING bfd
+   neighbor RING maximum-routes 1000
+   neighbor 100.64.12.1 peer group LEAF
+   neighbor 100.64.12.3 peer group LEAF
+   neighbor 100.64.112.1 peer group LEAF-TEST
+   neighbor 192.0.2.2 peer group RING
+   neighbor 192.0.2.2 remote-as 65512
+   neighbor 192.0.2.6 peer group RING
+   neighbor 192.0.2.6 remote-as 65521
+   !
+   address-family ipv4
+      neighbor LEAF activate
+      neighbor LEAF route-map RM-FROM-LEAF in
+      neighbor LEAF route-map RM-TO-LEAF out
+      neighbor LEAF-TEST activate
+      neighbor LEAF-TEST route-map RM-FROM-LEAF-TEST in
+      neighbor LEAF-TEST route-map RM-DENY-ALL out
+      neighbor RING activate
+!
+end

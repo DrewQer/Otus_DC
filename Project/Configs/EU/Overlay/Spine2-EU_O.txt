@@ -1,6 +1,3 @@
-router bfd
-   multihop interval 300 min-rx 300 multiplier 3
-!
 router bgp 65201
    neighbor EVPN-LEAF peer group
    neighbor EVPN-LEAF update-source Loopback0

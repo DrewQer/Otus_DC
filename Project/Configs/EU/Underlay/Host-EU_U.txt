@@ -6,3 +6,8 @@ ip routing
 logging buffered 64000 informational
 logging console informational
 logging synchronous level all
+
+!
+router bfd
+	bfd interval 1000 min-rx 1000 multiplier 5 default
+!

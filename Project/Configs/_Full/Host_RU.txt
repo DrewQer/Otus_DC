@@ -5,6 +5,8 @@
 !
 no aaa root
 !
+username admin privilege 15 role network-admin secret sha512 $6$QExSRE44E60eHdvA$2zR4Sv10YJDWbiDz4tNAFryJHbinHlqoKujWgFWNfSntBXDiIW4oJMSFzpu2.uqpd/34aMIflz/.urIIOAseA.
+!
 transceiver qsfp default-mode 4x10G
 !
 service routing protocols model multi-agent
@@ -99,7 +101,7 @@ route-map RM-VIP permit 10
    set origin igp
 !
 router bfd
-   interval 1000 min-rx 1000 multiplier 3 default
+   interval 1000 min-rx 1000 multiplier 5 default
 !
 router bgp 65301
    router-id 10.0.66.11

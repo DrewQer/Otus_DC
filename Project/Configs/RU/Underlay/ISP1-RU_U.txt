@@ -11,25 +11,21 @@ interface Ethernet1
    description TO_Leaf1-RU_Eth7
    no switchport
    ip address 100.64.1.0/31
-   bfd interval 300 min-rx 300 multiplier 3
 !
 interface Ethernet2
    description TO_Leaf2-RU_Eth7
    no switchport
    ip address 100.64.1.2/31
-   bfd interval 300 min-rx 300 multiplier 3
 !
 interface Ethernet3
    description TO_ISP2-RU_Eth3
    no switchport
    ip address 192.0.2.4/31
-   bfd interval 300 min-rx 300 multiplier 3
 !
 interface Ethernet4
    description TO_ISP1-EU_Eth4
    no switchport
    ip address 192.0.2.0/31
-   bfd interval 300 min-rx 300 multiplier 3
 !
 interface Ethernet8
    description TO_Client-RU_e0
@@ -48,6 +44,9 @@ route-map RM-TO-LEAF permit 10
    match ip address prefix-list PL-TO-LEAF
 route-map RM-DEFAULT-ORIGIN permit 10
    set origin igp
+!
+router bfd
+	bfd interval 1000 min-rx 1000 multiplier 5 default
 !
 router bgp 65511
    router-id 192.0.2.0

@@ -55,7 +55,6 @@ interface Ethernet2
 !
 interface Ethernet3
    description TO_Host-RU_Eth2
-   shutdown
    channel-group 1 mode active
 !
 interface Ethernet4
@@ -71,14 +70,12 @@ interface Ethernet6
 !
 interface Ethernet7
    description TO_ISP1-RU_Eth2
-   shutdown
    no switchport
    vrf GAME
    ip address 100.64.1.3/31
 !
 interface Ethernet8
    description TO_ISP2-RU_Eth2
-   shutdown
    no switchport
    vrf GAME
    ip address 100.64.2.3/31
@@ -192,7 +189,7 @@ route-map RM-TEST-OUT permit 10
    match ip address prefix-list PL-LO10
 !
 router bfd
-   interval 1000 min-rx 1000 multiplier 3 default
+   interval 1000 min-rx 1000 multiplier 5 default
 !
 router bgp 65112
    router-id 192.168.0.12

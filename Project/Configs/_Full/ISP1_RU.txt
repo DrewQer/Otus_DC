@@ -73,7 +73,7 @@ route-map RM-TO-LEAF permit 10
    match ip address prefix-list PL-TO-LEAF
 !
 router bfd
-   interval 1000 min-rx 1000 multiplier 3 default
+   interval 1000 min-rx 1000 multiplier 5 default
 !
 router bgp 65511
    router-id 192.0.2.0

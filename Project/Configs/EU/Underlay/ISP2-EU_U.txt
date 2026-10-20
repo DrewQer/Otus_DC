@@ -54,6 +54,9 @@ route-map RM-DENY-ALL deny 10
 route-map RM-DEFAULT-ORIGIN permit 10
    set origin igp
 !
+router bfd
+	bfd interval 1000 min-rx 1000 multiplier 5 default
+!
 router bgp 65522
    router-id 192.0.2.3
    no bgp default ipv4-unicast

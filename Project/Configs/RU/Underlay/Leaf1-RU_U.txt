@@ -22,14 +22,12 @@ interface Ethernet1
    no switchport
    mtu 9000
    ipv6 enable
-   bfd interval 300 min-rx 300 multiplier 3
 !
 interface Ethernet2
    description TO_Spine2-RU_Eth1
    no switchport
    mtu 9000
    ipv6 enable
-   bfd interval 300 min-rx 300 multiplier 3
 !
 ip prefix-list PL-LOOPBACKS seq 10 permit 192.168.0.0/24 le 32
 ip prefix-list PL-LOOPBACKS seq 20 permit 192.168.1.0/24 le 32
@@ -37,6 +35,9 @@ ip prefix-list PL-LOOPBACKS seq 20 permit 192.168.1.0/24 le 32
 route-map RM-CONN-TO-BGP permit 10
    match ip address prefix-list PL-LOOPBACKS
    set origin igp
+!
+router bfd
+	bfd interval 1000 min-rx 1000 multiplier 5 default
 !
 router bgp 65111
    router-id 192.168.0.11

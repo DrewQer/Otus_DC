@@ -62,6 +62,9 @@ route-map RM-VIP permit 10
    set origin igp
 route-map RM-DENY-ALL deny 10
 !
+router bfd
+	bfd interval 1000 min-rx 1000 multiplier 5 default
+!
 router bgp 65301
    router-id 10.0.66.11
    no bgp default ipv4-unicast
@@ -69,7 +72,6 @@ router bgp 65301
    distance bgp 20 200 200
    timers bgp 3 9
    neighbor LEAF peer group
-   neighbor LEAF bfd
    neighbor LEAF maximum-routes 10
    !
    address-family ipv4
