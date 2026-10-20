@@ -374,7 +374,7 @@ Underlay-сеть построена на базе протокола eBGP с и
 
 ## 6. Сценарии проверки и результат
 
-Для каждого сценария фиксируются время восстановления, число потерянных пакетов и путь в traceroute. Целевые значения задаются после первого прогона. Команды контроля: show bgp summary, show bgp evpn summary, show evpn ethernet-segment, show ip route vrf GAME, show ip route vrf TEST, show vxlan vtep, show port-channel, show ip access-lists, show bfd peers.
+Для каждого сценария фиксируется факт восстановления связности и путь в traceroute после отказа. Количественные показатели (время восстановления, число потерянных пакетов) в рамках лабораторной модели не измеряются: эмуляция vEOS-lab на общем CPU сервера EVE-NG, программный data plane и виртуальные линки не позволяют получить значения, применимые к реальной сети. Непрерывные ping в сценариях отказа носят иллюстративный характер и подтверждают только то, что связность восстанавливается. Целевые значения (RTO/RPO, допустимые потери) определяются при проектировании production-инфраструктуры и проверяются на аппаратной платформе. Команды контроля: show bgp summary, show bgp evpn summary, show evpn ethernet-segment, show ip route vrf GAME, show ip route vrf TEST, show vxlan vtep, show port-channel, show ip access-lists, show bfd peers.
 
 ### 6.1 Fabric
 
@@ -1539,8 +1539,6 @@ PING 10.0.66.11 (10.0.66.11) 72(100) bytes of data.
 ! T6: независимость uplink
 
 Leaf2-RU#clear counters
-Leaf2-RU#
-Oct 19 14:44:39 Leaf2-RU ConfigAgent: %CLEAR-5-COUNTERS: Clear counters on all interfaces by admin on con0 (0.0.0.0)
 Leaf2-RU#show interfaces Ethernet5,7,8 counters
 Port                           InOctets     InUcastPkts     InMcastPkts     InBcastPkts
 Et5                                 439               6               0               0
@@ -1623,7 +1621,7 @@ PING 10.0.177.11 (10.0.177.11) 72(100) bytes of data.
 --- 10.0.177.11 ping statistics ---
 3 packets transmitted, 0 received, 100% packet loss, time 28ms
 
-! T5: выход TEST в Интернет (ожидается: блокировка)
+! T5: выход TEST в Интернет (ожидается: отсутствие обратного маршрута)
 
 Host-RU#ping vrf TEST 10.0.100.1 repeat 3
 PING 10.0.100.1 (10.0.100.1) 72(100) bytes of data.
@@ -2492,7 +2490,7 @@ traceroute to 10.0.100.2 (10.0.100.2), 30 hops max, 60 byte packets
 <summary>Client-RU</summary>
 
 ```
-! D1-D3: непрерывный ping во время отказа ISP1 (сначала до Leaf1, после Leaf2), фиксировать потери и время восстановления
+! D1-D3: непрерывный ping во время отказа ISP1 (сначала до Leaf1, после Leaf2), фиксируется факт восстановления связности
 
 Client-RU> ping 10.0.100.2 -c 60
 
@@ -3335,7 +3333,7 @@ PING 10.0.66.11 (10.0.66.11) from 10.0.66.1 : 72(100) bytes of data.
 | **Коммутационная фабрика (Hardware & NOS)** | Программная эмуляция vEOS-lab на общем CPU сервера EVE-NG. Совмещение ролей AGW и BGW на Leaf. MTU underlay 9000 (ограничение стенда).        | Аппаратные ЦОД-коммутаторы из реестра Минпромторга с поддержкой EVPN-VXLAN (например, Eltex MES5xxx, YADRO KORNFELD) с штатной NOS вендора. Разделение ролей: Spine, Service Leaf и выделенный Border Leaf. Underlay MTU по максимуму платформы (до 9214) с запасом 50 байт на VXLAN.                          | Аппаратные ЦОД-коммутаторы с EVPN-VXLAN (например, Arista 7050X3 и 7280R3 с EOS, либо Juniper QFX с Junos). Разделение ролей: Spine, Service Leaf и Border Leaf. Underlay MTU по максимуму платформы с запасом 50 байт на VXLAN.                                                       |
 | **Интеграция игровых хостов**               | Хост эмулируется через vEOS. Анонс VIP по eBGP, снятие VIP вручную через `shutdown` Loopback100 и Loopback101.                               | Bare-metal серверы с Linux. Маршрутизация через BIRD2 или FRRouting, сессии eBGP с парой Leaf своей ESI-группы (`bgp listen range` на Leaf для динамических пиров). Снятие VIP автоматическое: L7 health-check (UDP/TCP порт игры) останавливает BIRD или гасит VIP, BFD ускоряет детекцию.                   | Bare-metal серверы, блейд-шасси или облачные инстансы (гибридная схема). Маршрутизация через BIRD2 либо Cilium BGP Control Plane (eBPF) для Kubernetes-нагрузок. Снятие VIP автоматическое: L7 health-check, BFD на стыке Host-Leaf.                                                    |
 | **Внешний периметр (Интернет & BGP)**       | Кольцо из 4 eBGP-узлов на виртуальных роутерах. Анонсирование точных `/32` (допущение стенда). Номера ASN приватные, внутренние ASN видны в AS-path. | Публичный ASN и блоки PI `/24` (анонсы не длиннее `/24`). Стыки с операторами в M9 и других узлах Москвы и Санкт-Петербурга, пиринг на MSK-IX (прежнее название M9-IX) и Piter-IX, транзитные магистральные операторы (например, Ростелеком, Транстелеком). RPKI ROA и ROV (Routinator), `remove-private-as`, prefix-list и max-prefix на каждой сессии. | Публичный ASN и блоки PI `/24`. Стыки в ЦОД Equinix Франкфурта и Амстердама, пиринг на DE-CIX Frankfurt, AMS-IX и LINX, транзитные операторы Tier-1 (например, Arelion, NTT, Lumen). RPKI ROA и ROV, фильтрация по IRR, `remove-private-as`, prefix-list и max-prefix на каждой сессии. |
-| **Безопасность и регуляторика**             | Административный Jump Host развёрнут на CPU коммутатора (`Loopback10` на Leaf1, SSH в VRF TEST). Периметр TEST защищён ACL на Eth5 Leaf2.    | Выделенный bastion-кластер за межсетевым экраном, доступ через ГОСТ VPN-шлюз (например, Континент, С-Терра). MFA, запись сессий (PAM), каталог пользователей (ALD Pro или Active Directory). Изолированный контур в соответствии с ФЗ-152. Терминация SSH на коммутаторах фабрики запрещена.                   | Выделенный bastion или ZTNA-шлюз в DMZ за NGFW (например, Fortinet, Palo Alto). SSO и MFA (Okta или Entra ID), проверка состояния устройства, запись сессий. Соответствие GDPR и ISO 27001. Терминация SSH на коммутаторах фабрики запрещена.                                          |
+| **Безопасность и регуляторика**             | Административный Jump Host развёрнут на CPU коммутатора (`Loopback10` на Leaf1, SSH в VRF TEST). Периметр TEST защищён RM в BGP    | Выделенный bastion-кластер за межсетевым экраном, доступ через ГОСТ VPN-шлюз (например, Континент, С-Терра). MFA, запись сессий (PAM), каталог пользователей (ALD Pro или Active Directory). Изолированный контур в соответствии с ФЗ-152. Терминация SSH на коммутаторах фабрики запрещена.                   | Выделенный bastion или ZTNA-шлюз в DMZ за NGFW (например, Fortinet, Palo Alto). SSO и MFA (Okta или Entra ID), проверка состояния устройства, запись сессий. Соответствие GDPR и ISO 27001. Терминация SSH на коммутаторах фабрики запрещена.                                          |
 
 ### 8.2 Инженерная реализация и устранение лабораторных допущений
 
