@@ -24,6 +24,7 @@
 
 ## Содержание
 
+0. [Изменения, До/После](#0-изменения-допосле)
 1. [О проекте](#1-о-проекте)
 2. [Описание стенда](#2-описание-стенда)
 3. [Топология](#3-топология)
@@ -33,11 +34,53 @@
 7. [Риски и допущения](#7-риски-и-допущения)
 8. [Реальный production](#8-реальный-production)
 
+## 0. Изменения, До/После
+
+Раздел фиксирует правки по замечаниям руководителя. Количественные показатели (время восстановления, число потерянных пакетов) по-прежнему не измеряются, поэтому во всех сценариях фиксируется факт переключения, путь и состояние таблиц.
+
+### 0.1 Что изменено
+
+| №   | Замечание                              | Было                                                                                              | Стало                                                                                                                         | Где         |
+| --- | -------------------------------------- | ------------------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ----------- |
+| 1   | Полный отказ сайта показан слабо       | B5 заявлен, лог пустой, в Leaf2-RU под меткой «B3/B5» выключен только Leaf1-RU                    | B5 выполнен: все узлы RU остановлены, показаны Client-RU, ISP1-RU, ISP2-RU, Client-EU и восстановление                        | 6.5 (B5)    |
+| 2   | BUM-шторм показан слабо                | Показаны MAC-таблица и счётчики без нагрузки                                                      | Добавлена генерация broadcast и счётчики до/после на Host-RU, Leaf1-RU, Leaf1-EU, ISP1-RU                                     | 6.5 (B6)    |
+| 3   | «Географически ближайший сайт»         | Выбор сайта объяснялся географией                                                                 | Выбор объяснён BGP-метрикой (длина AS-path, local-pref). Добавлена проверка A4, география в модели не моделируется            | 1, 5.5, 5.9, 6.3 (A4) |
+| 4   | Переключение «менее чем за 300 мс»     | В 5.5, 5.9 и 8.2.2 стояли «мгновенно» и «менее 300 мс»                                            | Утверждения заменены на «после перестроения таблиц маршрутизации». Значения BFD указаны как расчётные для production          | 5.5, 5.9, 8.2.2 |
+| 5   | Мелкие правки                          | В 8.1 «защищён RM в BGP», заголовок лога «B3/B5»                                                  | «защищён route-map на стыке BGP», заголовок «B3»                                                                              | 8.1, 6.5    |
+
+### 0.2 До/После: полный отказ сайта RU (B5)
+
+| Параметр                                  | До (RU и EU работают)                            | После (все узлы RU остановлены)                                              |
+| ----------------------------------------- | ------------------------------------------------ | ---------------------------------------------------------------------------- |
+| Client-RU, ping 10.0.100.100              | Отвечает RU                                      | Отвечает EU                                                                  |
+| Client-RU, trace 10.0.100.100             | Hop 2: стык Leaf1-RU (`100.64.1.1`)              | Hop 2: ISP1-RU и далее кольцо к EU (`192.0.2.1`, `100.64.11.1`)              |
+| Unicast VIP RU `10.0.100.1`               | Доступен                                         | Недоступен                                                                   |
+| Unicast VIP EU `10.0.100.2`               | Доступен через Интернет                          | Доступен                                                                     |
+| ISP1-RU, BGP для `10.0.100.100/32`        | Путь через Leaf RU                               | Путь только через ISP1-EU                                                    |
+| ISP1-RU, BGP для `10.0.100.1/32`          | Путь через Leaf RU                               | Маршрут отсутствует                                                          |
+| Client-EU, ping 10.0.100.100              | Отвечает EU                                      | Отвечает EU, без изменений                                                   |
+| Время восстановления, потери              | Не измеряются                                    | Не измеряются                                                                |
+
+### 0.3 До/После: BUM-шторм в VLAN 666 RU (B6)
+
+| Параметр                                           | До                           | После                                                       |
+| -------------------------------------------------- | ---------------------------- | ----------------------------------------------------------- |
+| Host-RU Po1, OutBcast                              | N0                           | N0 + N (N отправленных broadcast)                           |
+| Host-RU Po1, InBcast (признак дублей)              | N1                           | N1 + фон (прироста порядка N нет)                           |
+| Leaf1-RU Eth7, Eth8 (стык с ISP), Bcast            | N2                           | Не меняется                                                 |
+| Leaf1-EU Eth7, Eth8, Po1, Bcast                    | N3                           | Не меняется                                                 |
+| `show vxlan flood vtep` на Leaf1-RU                | Только VTEP `192.168.1.12`   | Без изменений, VTEP сайта EU в списке нет                   |
+
+### 0.4 Границы утверждений
+
+- Подтверждается: Anycast-вход ведёт на сайт с лучшей BGP-метрикой; при снятии VIP или остановке сайта маршрут исчезает у ISP и клиент уходит на второй сайт; BUM-трафик не выходит за пределы сайта и не дублируется на multihomed-хосте.
+- Не подтверждается: географическая близость, время переключения (в том числе «менее 300 мс»), скорость распространения маршрута по глобальному Интернету.
+
 ## 1. О проекте
 
 Лабораторная модель мультисайтовой фабрики для высоконагруженных игровых сервисов. Два независимых сайта, RU и EU, связаны только через эмуляцию Интернета: общего L2-домена и выделенных каналов между ними нет.
 
-Игрок входит по anycast в ближайший сайт. Сессия закрепляется за сайтом через unicast VIP. При отказе сервиса или всего сайта VIP снимается, и игрок уходит на второй сайт. На каждом сайте есть изолированная тестовая среда (VRF TEST), доступная из Интернета только через jump host.
+Игрок входит по anycast на сайт с лучшей BGP-метрикой (кратчайший AS-path с учётом local-pref), то есть  эмуляция блжайшего местоназначения. Сессия закрепляется за сайтом через unicast VIP. При отказе сервиса или всего сайта VIP снимается, и новые сессии направляются на второй сайт после перестроения таблиц маршрутизации. На каждом сайте есть изолированная тестовая среда (VRF TEST), доступная из Интернета только через jump host.
 
 ## 2. Описание стенда
 
@@ -290,9 +333,9 @@ Underlay-сеть построена на базе протокола eBGP с и
 
 | Механизм                       | Описание |
 | ------------------------------ | --- |
-| Механизм Anycast-входа         | Позволяет минимизировать сетевую задержку (RTT) за счет автоматического направления пакетов игрока на географически ближайший сайт силами глобальной BGP-маршрутизации Интернета. |
+| Механизм Anycast-входа         | Направляет пакеты игрока на сайт с лучшей BGP-метрикой (длина AS-path, local-pref). В реальном Интернете это обычно, но не всегда совпадает с географической близостью и минимальным RTT. |
 | Механизм Unicast-закрепления   | Так как Anycast не гарантирует стабильность пути при изменении топологии Интернета (что критично для stateful UDP-сессий игрового движка), первичная авторизация переводит клиента на выделенный Unicast VIP конкретного дата-центра. |
-| Механизм сходимости (Failover) | При падении игрового демона на сервере, BGP-сессия Host-Leaf разрывается. Leaf мгновенно генерирует BGP Withdraw. Маршрут отзывается из глобального Интернета, и новые игроки автоматически перенаправляются на резервный сайт. |
+| Механизм сходимости (Failover) | При падении игрового демона на сервере BGP-сессия Host-Leaf разрывается, Leaf отзывает маршрут (BGP Withdraw). После обработки withdraw операторами новые игроки направляются на резервный сайт. Время распространения зависит от операторов и в лаборатории не измерялось. |
 
 ### 5.6 Инфраструктура стыка с операторами
 
@@ -346,13 +389,13 @@ Underlay-сеть построена на базе протокола eBGP с и
 
 ### 5.9 Архитектура подключения пользователей и балансировка игрового сервиса
 
-Для минимизации сетевых задержек (RTT), исключения влияния нестабильности трасс Интернета на активные игровые сессии и обеспечения бесшовного восстановления после сбоев (Failover) реализована гибридная Anycast/Unicast-архитектура доставки сервиса.
+Для минимизации сетевых задержек (RTT), исключения влияния нестабильности трасс Интернета на активные игровые сессии и обеспечения бесшовного восстановления после сбоев (Failover) реализована гибридная Anycast/Unicast-архитектура доставки сервиса. Anycast отвечает за то, куда войдёт игрок, Unicast VIP за то, где он останется; путь выбирает BGP, а не карта.
 
 | Компонент архитектуры                | Механизм реализации и системная логика |
 | ------------------------------------ | --- |
-| **Точка входа (Anycast VIP)**        | На Loopback100-интерфейсах игровых хостов обоих сайтов (RU и EU) назначен идентичный IP-адрес `10.0.100.100/32`. Данный префикс анонсируется по eBGP от хостов к Leaf-коммутаторам, а затем транслируется в Интернет-кольцо. Глобальная BGP-маршрутизация автоматически направляет пакеты игрока к географически ближайшему дата-центру по кратчайшему пути AS-Path. |
+| **Точка входа (Anycast VIP)**        | На Loopback100-интерфейсах игровых хостов обоих сайтов (RU и EU) назначен идентичный IP-адрес `10.0.100.100/32`. Данный префикс анонсируется по eBGP от хостов к Leaf-коммутаторам, а затем транслируется в Интернет-кольцо. Глобальная BGP-маршрутизация направляет пакеты игрока на сайт с лучшей метрикой BGP (кратчайший AS-Path с учётом local-pref). Географическая близость не гарантируется. |
 | **Закрепление сессии (Unicast VIP)** | Протокол UDP, применяемый в игровых движках, чувствителен к изменению маршрута: смена VTEP или BGW в процессе игры разорвет stateful-сессию. Для исключения этого Anycast VIP используется **исключительно для первичного входа** (авторизация, получение листинга серверов). При установлении постоянной игровой сессии клиент перенаправляется на уникальный Unicast VIP конкретного сайта (`10.0.100.1/32` для RU или `10.0.100.2/32` для EU), жестко зафиксированный за локальным хостом. |
-| **Сходимость при отказе сервиса**    | В случае падения игрового приложения или планового вывода сервера из эксплуатации, демон маршрутизации на хосте гасит интерфейс Loopback100/101. eBGP-сессия Host-Leaf генерирует мгновенный отзыв маршрута (BGP Withdraw). Маршрут Anycast и локальный Unicast VIP исчезают из таблиц фабрики и внешних ISP. Сеть общего пользования перестраивается, и новые запросы игроков мгновенно уходят на резервный сайт. |
+| **Сходимость при отказе сервиса**    | В случае падения игрового приложения или планового вывода сервера из эксплуатации демон маршрутизации на хосте гасит интерфейс Loopback100/101. eBGP-сессия Host-Leaf отзывает маршрут (BGP Withdraw). Маршрут Anycast и локальный Unicast VIP исчезают из таблиц фабрики и внешних ISP. После перестроения таблиц новые запросы игроков уходят на резервный сайт. |
 | **Защита от межсайтового L2-шторма** | Поскольку Anycast-адрес присутствует на обоих сайтах, прямая организация сквозного Data Center Interconnect (DCI) на Layer 2 привела бы к катастрофическому зацикливанию трафика и BUM-штормам. В текущей архитектуре сайты связаны **строго через L3-маршрутизацию** эмулируемого Интернета. EVPN Type-2 (MAC/IP) и Type-3 (IMET) маршруты принципиально не покидают пределов своего сайта, полностью изолируя широковещательные домены. |
 
 ### 5.10 Интернет (Лабораторное допущение)
@@ -1665,11 +1708,12 @@ rtt min/avg/max/mdev = 36.340/39.744/43.222/2.810 ms, pipe 3, ipg/ewma 13.305/41
 
 ### 6.3 Multisite
 
-| №   | Проверка                             | Действие                                               | Ожидаемый результат                                         |
-| --- | ------------------------------------ | ------------------------------------------------------ | ----------------------------------------------------------- |
-| A1  | Связность Host-RU и Host-EU в GAME   | ping и traceroute 10.0.66.11 - 10.0.166.11             | Через ISP1, VXLAN границу сайта не пересекает               |
-| A2  | Выбор сайта по anycast               | Client-RU и Client-EU: ping и trace 10.0.100.100       | Client-RU приходит на RU, Client-EU на EU (по пути в trace) |
-| A3  | Доступность unicast VIP чужого сайта | Client-RU: ping 10.0.100.2, Client-EU: ping 10.0.100.1 | Доступны через Интернет                                     |
+| №   | Проверка                             | Действие                                               | Ожидаемый результат                                                    |
+| --- | ------------------------------------ | ------------------------------------------------------ | ---------------------------------------------------------------------- |
+| A1  | Связность Host-RU и Host-EU в GAME   | ping и traceroute 10.0.66.11 - 10.0.166.11             | Через ISP1, VXLAN границу сайта не пересекает                          |
+| A2  | Выбор сайта по anycast               | Client-RU и Client-EU: ping и trace 10.0.100.100       | Client-RU приходит на RU, Client-EU на EU (по пути в trace)            |
+| A3  | Доступность unicast VIP чужого сайта | Client-RU: ping 10.0.100.2, Client-EU: ping 10.0.100.1 | Доступны через Интернет                                                |
+| A4  | Причина выбора сайта по anycast      | ISP1-RU и ISP1-EU: show ip bgp 10.0.100.100/32         | Лучший путь ведёт к своему сайту, путь через кольцо длиннее по AS-path |
 
 ---
 
@@ -1946,6 +1990,45 @@ traceroute to 10.0.100.2 (10.0.100.2), 30 hops max, 60 byte packets
  2  100.64.11.1 (100.64.11.1)  130.064 ms  161.094 ms  180.125 ms
  3  10.0.100.2 (10.0.100.2)  199.181 ms  215.202 ms  226.443 ms
 
+! A4: выбор anycast по BGP-метрике
+
+ISP1-RU#show ip bgp 10.0.100.100/32
+BGP routing table information for VRF default
+Router identifier 192.0.2.0, local AS number 65511
+BGP routing table entry for 10.0.100.100/32
+ Paths: 3 available
+  65100 65301
+    100.64.1.3 from 100.64.1.3 (192.168.0.12)
+      Origin IGP, metric 0, localpref 100, IGP metric 0, weight 0, tag 0
+      Received 00:28:21 ago, valid, external, ECMP head, ECMP, best, ECMP contributor
+      Rx SAFI: Unicast
+  65100 65301
+    100.64.1.1 from 100.64.1.1 (192.168.0.11)
+      Origin IGP, metric 0, localpref 100, IGP metric 0, weight 0, tag 0
+      Received 00:28:10 ago, valid, external, ECMP, ECMP contributor
+      Rx SAFI: Unicast
+  65521 65200 65302
+    192.0.2.1 from 192.0.2.1 (192.0.2.1)
+      Origin IGP, metric 0, localpref 100, IGP metric 0, weight 0, tag 0
+      Received 00:03:33 ago, valid, external
+      Rx SAFI: Unicast
+
+ISP1-RU#show ip bgp 10.0.100.1/32
+BGP routing table information for VRF default
+Router identifier 192.0.2.0, local AS number 65511
+BGP routing table entry for 10.0.100.1/32
+ Paths: 2 available
+  65100 65301
+    100.64.1.3 from 100.64.1.3 (192.168.0.12)
+      Origin IGP, metric 0, localpref 100, IGP metric 0, weight 0, tag 0
+      Received 00:28:32 ago, valid, external, ECMP head, ECMP, best, ECMP contributor
+      Rx SAFI: Unicast
+  65100 65301
+    100.64.1.1 from 100.64.1.1 (192.168.0.11)
+      Origin IGP, metric 0, localpref 100, IGP metric 0, weight 0, tag 0
+      Received 00:28:22 ago, valid, external, ECMP, ECMP contributor
+      Rx SAFI: Unicast
+
 ```
 
 </details>
@@ -1954,7 +2037,52 @@ traceroute to 10.0.100.2 (10.0.100.2), 30 hops max, 60 byte packets
 
 #### <u>**Site-EU**</u>
 
-Аналогично Site-RU
+<details>
+<summary>ISP1-EU</summary>
+
+```
+! A4: выбор anycast по BGP-метрике
+
+ISP1-EU#show ip bgp 10.0.100.100/32
+BGP routing table information for VRF default
+Router identifier 192.0.2.1, local AS number 65521
+BGP routing table entry for 10.0.100.100/32
+ Paths: 3 available
+  65200 65302
+    100.64.11.3 from 100.64.11.3 (192.168.10.12)
+      Origin IGP, metric 0, localpref 100, IGP metric 0, weight 0, tag 0
+      Received 00:05:49 ago, valid, external, ECMP head, ECMP, best, ECMP contributor
+      Rx SAFI: Unicast
+  65200 65302
+    100.64.11.1 from 100.64.11.1 (192.168.10.11)
+      Origin IGP, metric 0, localpref 100, IGP metric 0, weight 0, tag 0
+      Received 00:05:44 ago, valid, external, ECMP, ECMP contributor
+      Rx SAFI: Unicast
+  65511 65100 65301
+    192.0.2.0 from 192.0.2.0 (192.0.2.0)
+      Origin IGP, metric 0, localpref 100, IGP metric 0, weight 0, tag 0
+      Received 00:06:22 ago, valid, external
+      Rx SAFI: Unicast
+
+ISP1-EU#show ip bgp 10.0.100.2/32
+BGP routing table information for VRF default
+Router identifier 192.0.2.1, local AS number 65521
+BGP routing table entry for 10.0.100.2/32
+ Paths: 2 available
+  65200 65302
+    100.64.11.3 from 100.64.11.3 (192.168.10.12)
+      Origin IGP, metric 0, localpref 100, IGP metric 0, weight 0, tag 0
+      Received 00:06:42 ago, valid, external, ECMP head, ECMP, best, ECMP contributor
+      Rx SAFI: Unicast
+  65200 65302
+    100.64.11.1 from 100.64.11.1 (192.168.10.11)
+      Origin IGP, metric 0, localpref 100, IGP metric 0, weight 0, tag 0
+      Received 00:06:36 ago, valid, external, ECMP, ECMP contributor
+      Rx SAFI: Unicast
+
+```
+
+</details>
 
 ---
 
@@ -2535,14 +2663,14 @@ Client-RU> ping 10.0.100.2 -c 60
 
 ### 6.5 Игровой сервис
 
-| №   | Проверка                  | Действие                                      | Ожидаемый результат                                                                  |
-| --- | ------------------------- | --------------------------------------------- | ------------------------------------------------------------------------------------ |
-| B1  | Отказ сервиса на RU       | shutdown Loopback100 и Loopback101 на Host-RU | VIP снят, Client-RU уходит на EU по anycast, unicast RU недоступен                   |
-| B2  | Возврат сервиса RU        | no shutdown на Host-RU                        | Anycast снова ведёт Client-RU на RU                                                  |
-| B3  | Отказ одного Leaf         | Выключение Leaf1-RU                           | Host-RU доступен через Leaf2, VIP не пропадает, сессия Host-Leaf переустанавливается |
-| B4  | Отказ линка Host-Leaf     | shutdown Eth3 на Leaf1-RU                     | Трафик хоста через Leaf2 (ESI, LACP)                                                 |
-| B5  | Полный отказ сайта RU     | Выключение всех узлов RU                      | Anycast ведёт на EU, unicast RU недоступен, игрок переподключается                   |
-| B6  | BUM-шторм в VLAN 666 (RU) | Broadcast flood                               | EU не затронут, дублей на multihomed-хосте нет                                       |
+| №   | Проверка                  | Действие                                                  | Ожидаемый результат                                                                                                                 |
+| --- | ------------------------- | --------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| B1  | Отказ сервиса на RU       | shutdown Loopback100 и Loopback101 на Host-RU             | VIP снят, Client-RU уходит на EU по anycast, unicast RU недоступен                                                                  |
+| B2  | Возврат сервиса RU        | no shutdown на Host-RU                                    | Anycast снова ведёт Client-RU на RU                                                                                                 |
+| B3  | Отказ одного Leaf         | Выключение Leaf1-RU                                       | Host-RU доступен через Leaf2, VIP не пропадает, сессия Host-Leaf переустанавливается                                                |
+| B4  | Отказ линка Host-Leaf     | shutdown Eth3 на Leaf1-RU                                 | Трафик хоста через Leaf2 (ESI, LACP)                                                                                                |
+| B5  | Полный отказ сайта RU     | Остановка узлов Spine1/2-RU, Leaf1/2-RU, Host-RU в EVE-NG | Anycast ведёт Client-RU на EU, unicast RU недоступен, unicast EU и Client-EU не затронуты, после запуска узлов RU восстанавливается |
+| B6  | BUM-шторм в VLAN 666 (RU) | Broadcast flood с Host-RU (`ping -b`)                     | Счётчики Bcast на стыках с ISP и в EU не растут, дублей на multihomed-хосте нет                                                     |
 
 ---
 
@@ -2668,9 +2796,124 @@ Client-RU> ping 10.0.100.1
 *198.51.100.1 icmp_seq=4 ttl=64 time=7.609 ms (ICMP type:3, code:0, Destination network unreachable)
 *198.51.100.1 icmp_seq=5 ttl=64 time=6.133 ms (ICMP type:3, code:0, Destination network unreachable)
 
-! B5 Полный отказ сайта RU 
+! B5: ПОСЛЕ (Site-RU выключен, shutdown Leaf-ISP линки)
 
+Client-RU> ping 10.0.100.100
 
+84 bytes from 10.0.100.100 icmp_seq=1 ttl=61 time=121.117 ms
+84 bytes from 10.0.100.100 icmp_seq=2 ttl=61 time=37.128 ms
+84 bytes from 10.0.100.100 icmp_seq=3 ttl=61 time=44.362 ms
+84 bytes from 10.0.100.100 icmp_seq=4 ttl=61 time=48.016 ms
+84 bytes from 10.0.100.100 icmp_seq=5 ttl=61 time=48.769 ms
+
+Client-RU> trace 10.0.100.100
+trace to 10.0.100.100, 8 hops max, press Ctrl+C to stop
+ 1   198.51.100.1   5.697 ms  4.037 ms  4.304 ms
+ 2   192.0.2.1   22.593 ms  16.309 ms  16.585 ms
+ 3   100.64.11.3   30.977 ms  28.589 ms  25.907 ms
+ 4     *  *  *
+ 5     *  *  *
+ 6     *  *  *
+ 7     *  *  *
+ 8     *  *  *
+
+Client-RU> ping 10.0.100.1
+
+*198.51.100.1 icmp_seq=1 ttl=64 time=3.820 ms (ICMP type:3, code:0, Destination network unreachable)
+*198.51.100.1 icmp_seq=2 ttl=64 time=6.094 ms (ICMP type:3, code:0, Destination network unreachable)
+*198.51.100.1 icmp_seq=3 ttl=64 time=4.275 ms (ICMP type:3, code:0, Destination network unreachable)
+*198.51.100.1 icmp_seq=4 ttl=64 time=4.092 ms (ICMP type:3, code:0, Destination network unreachable)
+*198.51.100.1 icmp_seq=5 ttl=64 time=4.293 ms (ICMP type:3, code:0, Destination network unreachable)
+
+Client-RU> ping 10.0.100.2
+
+84 bytes from 10.0.100.2 icmp_seq=1 ttl=61 time=52.981 ms
+84 bytes from 10.0.100.2 icmp_seq=2 ttl=61 time=49.206 ms
+84 bytes from 10.0.100.2 icmp_seq=3 ttl=61 time=50.103 ms
+84 bytes from 10.0.100.2 icmp_seq=4 ttl=61 time=40.504 ms
+84 bytes from 10.0.100.2 icmp_seq=5 ttl=61 time=44.988 ms
+
+```
+
+</details>
+
+</details>
+
+<details>
+<summary>ISP1-RU</summary>
+
+```
+
+! B5: ПОСЛЕ (Site-RU выключен, shutdown Leaf-ISP линки)
+
+ISP1-RU#show ip bgp summary
+BGP summary information for VRF default
+Router identifier 192.0.2.0, local AS number 65511
+Neighbor Status Codes: m - Under maintenance
+  Neighbor   V AS           MsgRcvd   MsgSent  InQ OutQ  Up/Down State   PfxRcd PfxAcc
+  100.64.1.1 4 65100            906       911    0    0 00:05:38 Idle(NoIf)
+  100.64.1.3 4 65100            906       906    0    0 00:05:40 Idle(NoIf)
+  192.0.2.1  4 65521            478       478    0    0 00:19:55 Estab   5      5
+  192.0.2.5  4 65512           1051      1050    0    0 00:44:36 Estab   3      3
+
+ISP1-RU#show ip bgp 10.0.100.100/32
+BGP routing table information for VRF default
+Router identifier 192.0.2.0, local AS number 65511
+BGP routing table entry for 10.0.100.100/32
+ Paths: 2 available
+  65521 65200 65302
+    192.0.2.1 from 192.0.2.1 (192.0.2.1)
+      Origin IGP, metric 0, localpref 100, IGP metric 0, weight 0, tag 0
+      Received 00:19:26 ago, valid, external, best
+      Rx SAFI: Unicast
+  65512 65522 65521 65200 65302
+    192.0.2.5 from 192.0.2.5 (192.0.2.2)
+      Origin IGP, metric 0, localpref 100, IGP metric 0, weight 0, tag 0
+      Received 00:05:43 ago, valid, external
+      Rx SAFI: Unicast
+
+ISP1-RU#traceroute 10.0.100.100 source 198.51.100.1
+traceroute to 10.0.100.100 (10.0.100.100), 30 hops max, 60 byte packets
+ 1  192.0.2.1 (192.0.2.1)  27.640 ms  40.610 ms  100.828 ms
+ 2  100.64.11.3 (100.64.11.3)  109.038 ms  120.590 ms  125.709 ms
+ 3  10.0.100.100 (10.0.100.100)  135.118 ms  150.414 ms  157.185 ms
+
+```
+
+</details>
+
+<details>
+<summary>ISP2-RU</summary>
+
+```
+! B5: ПОСЛЕ (Site-RU выключен, shutdown Leaf-ISP линки)
+
+ISP2-RU#show ip bgp summary
+BGP summary information for VRF default
+Router identifier 192.0.2.2, local AS number 65512
+Neighbor Status Codes: m - Under maintenance
+  Neighbor     V AS           MsgRcvd   MsgSent  InQ OutQ  Up/Down State   PfxRcd PfxAcc
+  100.64.2.1   4 65100            907       907    0    0 00:07:46 Idle(NoIf)
+  100.64.2.3   4 65100            913       911    0    0 00:07:48 Idle(NoIf)
+  100.64.102.1 4 65100           1088      1089    0    0 00:46:19 Estab   1      1
+  192.0.2.3    4 65522            521       525    0    0 00:22:05 Estab   5      5
+  192.0.2.4    4 65511           1101      1101    0    0 00:46:44 Estab   5      5
+
+ISP2-RU#show ip bgp 10.0.100.100/32
+BGP routing table information for VRF default
+Router identifier 192.0.2.2, local AS number 65512
+BGP routing table entry for 10.0.100.100/32
+ Paths: 2 available
+  65522 65521 65200 65302
+    192.0.2.3 from 192.0.2.3 (192.0.2.3)
+      Origin IGP, metric 0, localpref 100, IGP metric 0, weight 0, tag 0
+      Received 00:21:31 ago, valid, external, ECMP head, ECMP, best, ECMP contributor
+      Rx SAFI: Unicast
+  65511 65521 65200 65302
+    192.0.2.4 from 192.0.2.4 (192.0.2.0)
+      Origin IGP, metric 0, localpref 100, IGP metric 0, weight 0, tag 0
+      Received 00:07:49 ago, valid, external, ECMP, ECMP contributor
+      Rx SAFI: Unicast
 
 ```
 
@@ -2829,6 +3072,65 @@ PING 10.0.66.1 (10.0.66.1) from 10.0.100.1 : 72(100) bytes of data.
 --- 10.0.66.1 ping statistics ---
 5 packets transmitted, 5 received, 0% packet loss, time 51ms
 rtt min/avg/max/mdev = 106.601/120.708/128.338/9.133 ms, pipe 5, ipg/ewma 12.781/114.191 ms
+
+! B6: ДО
+
+Host-RU#show interfaces Port-Channel1 counters
+Port                           InOctets     InUcastPkts     InMcastPkts     InBcastPkts
+Po1                             1490976            7852           10264             628
+
+Port                          OutOctets    OutUcastPkts    OutMcastPkts    OutBcastPkts
+Po1                              760693            7854             666               8
+
+Host-RU#bash ip netns list
+ns-GAME (id: 0)
+ns-TEST (id: 11)
+default
+
+! B6: ПОСЛЕ
+
+Host-RU#bash sudo ip netns exec ns-GAME ping -b -q -c 500 -i 0.01 -w 8 10.0.66.255 ; true
+WARNING: pinging broadcast address
+PING 10.0.66.255 (10.0.66.255) 56(84) bytes of data.
+
+--- 10.0.66.255 ping statistics ---
+495 packets transmitted, 0 received, 100% packet loss, time 7997ms
+
+Host-RU#show interfaces Port-Channel1 counters
+Port                           InOctets     InUcastPkts     InMcastPkts     InBcastPkts
+Po1                             1931498           10185           13285             811
+
+Port                          OutOctets    OutUcastPkts    OutMcastPkts    OutBcastPkts
+Po1                             1090905           10182             858            1003
+
+Host-RU#show interfaces Ethernet1-2 counters
+Port                           InOctets     InUcastPkts     InMcastPkts     InBcastPkts
+Et1                              969589            5110            6664             408
+Et2                              965807            5082            6648             404
+
+Port                          OutOctets    OutUcastPkts    OutMcastPkts    OutBcastPkts
+Et1                               71172               0             457               0
+Et2                             1027264           10189             453            1003
+
+Host-RU#show port-channel dense
+
+                 Flags                                                         
+------------------------ ---------------------------- -------------------------
+  a - LACP Active          p - LACP Passive           * - static fallback      
+  F - Fallback enabled     f - Fallback configured    ^ - individual fallback  
+  U - In Use               D - Down                                            
+  + - In-Sync              - - Out-of-Sync            i - incompatible with agg
+  P - bundled in Po        s - suspended              G - Aggregable           
+  I - Individual           S - ShortTimeout           w - wait for agg         
+  E - Inactive. The number of configured port channels exceeds the config limit
+   M - Exceeds maximum weight
+
+Number of channels in use: 1
+Number of aggregators: 1
+
+   Port-Channel       Protocol    Ports             
+------------------ -------------- ------------------
+   Po1(U)             LACP(a)     Et1(PG+) Et2(PG+) 
 
 ```
 
@@ -3042,50 +3344,18 @@ Neighbor Status Codes: m - Under maintenance
   100.64.1.0 4 65511           5209      5231    0   19 01:42:29 Estab   3      3
   100.64.2.0 4 65512           5279      5305    0   19 02:13:04 Estab   3      3
 
-! B6: счётчики BUM в VLAN 666
+! B6: ДО
 
-Leaf1-RU#show mac address-table vlan 666
-          Mac Address Table
-------------------------------------------------------------------
-
-Vlan    Mac Address       Type        Ports      Moves   Last Move
-----    -----------       ----        -----      -----   ---------
- 666    001c.7300.0099    STATIC      Cpu
- 666    5000.00ba.c6f8    DYNAMIC     Po1        2       0:01:30 ago
-Total Mac Addresses for this criterion: 2
-
-          Multicast Mac Address Table
-------------------------------------------------------------------
-
-Vlan    Mac Address       Type        Ports
-----    -----------       ----        -----
-Total Mac Addresses for this criterion: 0
-
-Leaf1-RU#show interfaces Ethernet3 counters
+Leaf1-RU#show interfaces Ethernet3, Ethernet7-8 counters
 Port                           InOctets     InUcastPkts     InMcastPkts     InBcastPkts
-Et3                             1105312           11394             939              14
+Et3                               64724               0             416               0
+Et7                              679875            8774             156              23
+Et8                              678992            8766             155              22
 
 Port                          OutOctets    OutUcastPkts    OutMcastPkts    OutBcastPkts
-Et3                             2047358           11127           13742             837
-
-Leaf1-RU#show interfaces Port-Channel1 counters
-Port                           InOctets     InUcastPkts     InMcastPkts     InBcastPkts
-Po1                             1103276           11397             922              14
-
-Port                          OutOctets    OutUcastPkts    OutMcastPkts    OutBcastPkts
-Po1                             2045955           11131           13730             839
-
-Leaf1-RU#show interfaces counters errors
-Port               FCS    Align   Symbol       Rx    Runts   Giants       Tx
-Et1                  0        0        0        0        0        0        0
-Et2                  0        0        0        0        0        0        0
-Et3                  0        0        0        0        0        0        0
-Et4                  0        0        0        0        0        0        0
-Et5                  0        0        0        0        0        0        0
-Et6                  0        0        0        0        0        0        0
-Et7                  0        0        0        0        0        0        0
-Et8                  0        0        0        0        0        0        0
-Ma1                  0        0        0        0        0        0        0
+Et3                              869839            4610            6016             369
+Et7                              677791            8768             157               1
+Et8                              675952            8743             157               1
 
 Leaf1-RU#show vxlan flood vtep
           VXLAN Flood VTEP Table
@@ -3093,7 +3363,45 @@ Leaf1-RU#show vxlan flood vtep
 
 VLANS                            Ip Address
 -----------------------------   ------------------------------------------------
-666,777                         192.168.1.12  
+666,777                         192.168.1.12   
+
+Leaf1-RU#sh bgp evpn route-type ethernet-segment 
+BGP routing table information for VRF default
+Router identifier 192.168.0.11, local AS number 65111
+Route status codes: * - valid, > - active, S - Stale, E - ECMP head, e - ECMP
+                    c - Contributing to ECMP, % - Pending BGP convergence
+Origin codes: i - IGP, e - EGP, ? - incomplete
+AS Path Attributes: Or-ID - Originator ID, C-LST - Cluster List, LL Nexthop - Link Local Nexthop
+
+          Network                Next Hop              Metric  LocPref Weight  Path
+ * >      RD: 192.168.1.11:1 ethernet-segment 0011:0000:0000:0000:0001 192.168.1.11
+                                 -                     -       -       0       i
+ * >Ec    RD: 192.168.1.12:1 ethernet-segment 0011:0000:0000:0000:0001 192.168.1.12
+                                 192.168.1.12          -       100     0       65101 65112 i
+ *  ec    RD: 192.168.1.12:1 ethernet-segment 0011:0000:0000:0000:0001 192.168.1.12
+                                 192.168.1.12          -       100     0       65101 65112 i
+
+! B6: ПОСЛЕ
+
+Leaf1-RU#show interfaces Ethernet3, Ethernet7-8 counters
+Port                           InOctets     InUcastPkts     InMcastPkts     InBcastPkts
+Et3                               71676               0             460               0
+Et7                              778583           10051             179              23
+Et8                              777495           10040             178              22
+
+Port                          OutOctets    OutUcastPkts    OutMcastPkts    OutBcastPkts
+Et3                              970280            5144            6712             411
+Et7                              776497           10045             180               1
+Et8                              774361           10016             180               1
+
+Leaf1-RU#show vxlan flood vtep
+          VXLAN Flood VTEP Table
+--------------------------------------------------------------------------------
+
+VLANS                            Ip Address
+-----------------------------   ------------------------------------------------
+666,777                         192.168.1.12 
+
 ```
 
 </details>
@@ -3102,7 +3410,7 @@ VLANS                            Ip Address
 <summary>Leaf2-RU</summary>
 
 ```
-! B3/B5: поведение Leaf2 после выключения Leaf1-RU
+! B3: Поведение Leaf2 после выключения Leaf1-RU
 
 Leaf1-RU#conf t
 iLeaf1-RU(config)#
@@ -3283,6 +3591,54 @@ PING 10.0.66.11 (10.0.66.11) from 10.0.66.1 : 72(100) bytes of data.
 80 bytes from 10.0.66.11: icmp_seq=4 ttl=64 time=55.8 ms
 80 bytes from 10.0.66.11: icmp_seq=5 ttl=64 time=59.3 ms
 
+! B6: ДО
+
+Leaf2-RU#show interfaces Ethernet3, Ethernet7-8 counters
+Port                           InOctets     InUcastPkts     InMcastPkts     InBcastPkts
+Et3                              849565            9393             411               8
+Et7                              697069            9014             158               9
+Et8                              697061            9013             158              10
+
+Port                          OutOctets    OutUcastPkts    OutMcastPkts    OutBcastPkts
+Et3                              884860            4684            6130             372
+Et7                              695380            9000             159               2
+Et8                              696769            9016             159               2
+
+Leaf2-RU#show bgp evpn route-type imet
+BGP routing table information for VRF default
+Router identifier 192.168.0.12, local AS number 65112
+Route status codes: * - valid, > - active, S - Stale, E - ECMP head, e - ECMP
+                    c - Contributing to ECMP, % - Pending BGP convergence
+Origin codes: i - IGP, e - EGP, ? - incomplete
+AS Path Attributes: Or-ID - Originator ID, C-LST - Cluster List, LL Nexthop - Link Local Nexthop
+
+          Network                Next Hop              Metric  LocPref Weight  Path
+ * >Ec    RD: 192.168.0.11:10666 imet 192.168.1.11
+                                 192.168.1.11          -       100     0       65101 65111 i
+ *  ec    RD: 192.168.0.11:10666 imet 192.168.1.11
+                                 192.168.1.11          -       100     0       65101 65111 i
+ * >Ec    RD: 192.168.0.11:10777 imet 192.168.1.11
+                                 192.168.1.11          -       100     0       65101 65111 i
+ *  ec    RD: 192.168.0.11:10777 imet 192.168.1.11
+                                 192.168.1.11          -       100     0       65101 65111 i
+ * >      RD: 192.168.0.12:10666 imet 192.168.1.12
+                                 -                     -       -       0       i
+ * >      RD: 192.168.0.12:10777 imet 192.168.1.12
+                                 -                     -       -       0       i
+
+! B6: ПОСЛЕ
+
+
+Leaf2-RU#show interfaces Ethernet3, Ethernet7-8 counters
+Port                           InOctets     InUcastPkts     InMcastPkts     InBcastPkts
+Et3                             1043043           10371             451            1003
+Et7                              787890           10189             179               9
+Et8                              788074           10190             179              10
+
+Port                          OutOctets    OutUcastPkts    OutMcastPkts    OutBcastPkts
+Et3                              977036            5173            6768             410
+Et7                              786422           10180             179               2
+Et8                              787976           10196             180               2
 ```
 
 </details>
@@ -3291,7 +3647,112 @@ PING 10.0.66.11 (10.0.66.11) from 10.0.66.1 : 72(100) bytes of data.
 
 #### <u>**Site-EU**</u>
 
-Аналогично Site-RU
+<details>
+<summary>Client-EU</summary>
+
+```
+! B5: ДО и ПОСЛЕ (должно совпадать)
+
+Client-EU> ping 10.0.100.100
+
+84 bytes from 10.0.100.100 icmp_seq=1 ttl=62 time=56.517 ms
+84 bytes from 10.0.100.100 icmp_seq=2 ttl=62 time=41.001 ms
+84 bytes from 10.0.100.100 icmp_seq=3 ttl=62 time=43.715 ms
+84 bytes from 10.0.100.100 icmp_seq=4 ttl=62 time=107.312 ms
+84 bytes from 10.0.100.100 icmp_seq=5 ttl=62 time=32.050 ms
+
+Client-EU> trace 10.0.100.100
+trace to 10.0.100.100, 8 hops max, press Ctrl+C to stop
+ 1   203.0.113.1   7.509 ms  5.003 ms  6.738 ms
+ 2   100.64.11.3   17.266 ms  12.981 ms  14.382 ms
+ 3     *  *  *
+ 4     *  *  *
+ 5     *  *  *
+ 6     *  *  *
+ 7     *  *  *
+ 8     *  *  *
+
+```
+
+</details>
+
+<details>
+<summary>Leaf1-EU</summary>
+
+```
+! B5: сайт EU не затронут
+Leaf1-EU#show ip bgp summary vrf GAME
+BGP summary information for VRF GAME
+Router identifier 192.168.10.11, local AS number 65211
+Neighbor Status Codes: m - Under maintenance
+  Neighbor    V AS           MsgRcvd   MsgSent  InQ OutQ  Up/Down State   PfxRcd PfxAcc
+  10.0.166.11 4 65302            610       603    0    0 00:25:50 Estab   2      2
+  100.64.11.0 4 65521            619       613    0    0 00:26:02 Estab   1      1
+  100.64.12.0 4 65522            616       611    0    0 00:26:04 Estab   1      1
+
+Leaf1-EU#show ip route vrf GAME 10.0.100.0/24 longer-prefixes
+
+VRF: GAME
+Codes: C - connected, S - static, K - kernel, 
+       O - OSPF, IA - OSPF inter area, E1 - OSPF external type 1,
+       E2 - OSPF external type 2, N1 - OSPF NSSA external type 1,
+       N2 - OSPF NSSA external type2, B - Other BGP Routes,
+       B I - iBGP, B E - eBGP, R - RIP, I L1 - IS-IS level 1,
+       I L2 - IS-IS level 2, O3 - OSPFv3, A B - BGP Aggregate,
+       A O - OSPF Summary, NG - Nexthop Group Static Route,
+       V - VXLAN Control Service, M - Martian,
+       DH - DHCP client installed default route,
+       DP - Dynamic Policy Route, L - VRF Leaked,
+       G  - gRIBI, RC - Route Cache Route
+
+ B E      10.0.100.2/32 [20/0] via 10.0.166.11, Vlan666
+ B E      10.0.100.100/32 [20/0] via 10.0.166.11, Vlan666
+
+! B6: ДО
+
+Leaf1-EU#show interfaces Ethernet3, Ethernet7-8 counters
+Port                           InOctets     InUcastPkts     InMcastPkts     InBcastPkts
+Et3                              366322            3756             328               1
+Et7                              691951            8945             156              10
+Et8                              694734            8983             156               8
+
+Port                          OutOctets    OutUcastPkts    OutMcastPkts    OutBcastPkts
+Et3                              375374            3718             322             295
+Et7                              693929            8968             158               1
+Et8                              693970            8979             158               0
+
+Leaf1-EU#show vxlan flood vtep
+          VXLAN Flood VTEP Table
+--------------------------------------------------------------------------------
+
+VLANS                            Ip Address
+-----------------------------   ------------------------------------------------
+666,777                         192.168.11.12
+
+! B6: ПОСЛЕ
+
+Leaf1-EU#show interfaces Ethernet3, Ethernet7-8 counters
+Port                           InOctets     InUcastPkts     InMcastPkts     InBcastPkts
+Et3                              396427            4067             354               1
+Et7                              750272            9701             169              10
+Et8                              753824            9749             169               8
+
+Port                          OutOctets    OutUcastPkts    OutMcastPkts    OutBcastPkts
+Et3                              407056            4034             348             320
+Et7                              752174            9724             171               1
+Et8                              752872            9742             171               0
+
+Leaf1-EU#show vxlan flood vtep
+          VXLAN Flood VTEP Table
+--------------------------------------------------------------------------------
+
+VLANS                            Ip Address
+-----------------------------   ------------------------------------------------
+666,777                         192.168.11.12  
+
+```
+
+</details>
 
 ---
 
@@ -3304,12 +3765,14 @@ PING 10.0.66.11 (10.0.66.11) from 10.0.66.1 : 72(100) bytes of data.
 Данные пункты являются сознательным компромиссом для реализации проекта в среде виртуализации EVE-NG и требуют полной перестройки инфраструктуры при переходе к промышленной эксплуатации.
 
 | Пункт                                                                                            | Суть допущения | Проблема |
-| ------------------------------------------------------------------------------------------------ | --- | --- |
+| ------------------------------------------------------------------------------------------------ | -------------- | -------- |
 | Угроза дестабилизации Control Plane при совмещении роли коммутатора и Jump Host                  | Терминация входящих SSH-сессий разработчиков в `VRF TEST` выполняется непосредственно на управляющем интерфейсе (`Loopback10`) коммутатора ядра фабрики `Leaf1`. | Коммутатор вынужден тратить ресурсы своего главного процессора (Control Plane CPU) на обработку прикладного трафика. В реальной инфраструктуре это категорически недопустимо, так как открывает прямой вектор для DoS/DDoS-атак на сетевое устройство (например, через Brute-Force или уязвимости в SSH-стеке). Перегрузка CPU приведет к падению BGP Underlay/Overlay сессий всего сайта и отказу продуктивного сегмента игры. |
 | Зависимость административного доступа от стабильности Overlay-фабрики (Совмещение ролей AGW/BGW) | Из-за совмещения ролей пограничного шлюза (BGW) и шлюза хостов (AGW) на одном комплекте коммутаторов трафик разработчика поступает на `Leaf2` (Eth5), инкапсулируется в VXLAN-туннель с транзитным `L3VNI 10077` и отправляется на `Leaf1` через Underlay-сеть фабрики. | Доступ к Jump Host для управления и диагностики тестовой среды напрямую зависит от работоспособности внутренних туннелей фабрики. При аварии внутренних линков Spine-Leaf или сбое в работе EVPN Control Plane сессия администратора разорвется, даже если сам тестовый хост и интерфейс подключения к ISP функционируют штатно. В production-архитектурах внешние стыки и Bastion-серверы выносятся за пределы внутренней VXLAN-фабрики. |
 | Отсутствие прикладного L7 Health-Checking (Эмуляция сервиса на сетевой ОС)                       | Роль игрового сервера выполняет экземпляр vEOS-lab, а отзыв Anycast/Unicast VIP-адресов завязан исключительно на ручное изменение административного состояния интерфейса Loopback (`shutdown`). Реальный мониторинг доступности игрового демона на прикладном уровне (L7) в схеме отсутствует. | В случае зависания игрового процесса, падения базы данных или переполнения пула соединений при сохранении физического линка eBGP-сессия Host-Leaf останется активной. Фабрика и Интернет-кольцо продолжат направлять трафик игроков на неработающий сервер («черная дыра» для трафика), что полностью нивелирует отказоустойчивость Anycast. |
 | Анонсирование маршрутов `/32` (Host Routes) в эмулируемый Интернет                               | Игровые Anycast/Unicast VIP-адреса, а также адрес Jump Host передаются в транзитное кольцо провайдеров в виде точных префиксов с маской `/32`. | Архитектура работоспособна только внутри изолированного лабораторного стенда. В реальной сети Интернет (глобальная таблица маршрутизации BGP Full-View) операторы Tier-1/Tier-2 жестко фильтруют любые анонсы длиннее `/24` (RFC 7454). Для работы в Production потребуется выделение полноценного блока адресов и переработка схемы балансировки. |
 | Упрощенная топология транзитной сети (Проблема Path Hunting)                                     | Модель Интернета представлена четырьмя eBGP-узлами без использования политик предотвращения петель на базе сообществ (BGP Communities). | При аварии на магистральных линках кольца (например, стык ISP1-RU — ISP1-EU) протокол eBGP запускает процедуру последовательного перебора альтернативных маршрутов (Path Hunting). В процессе сходимости трафик между сайтами может временно зацикливаться, приводя к потере пакетов и лавинообразному росту задержек (RTT). |
+| Метрика выбора сайта                                                                             | Anycast-вход определяется BGP-метрикой (AS-path, local-pref) | Географическая близость и минимальный RTT не гарантируются, выбор может отличаться от ожидаемого в реальном Интернете |
+
 
 ### 7.2 Системные архитектурные риски дизайна фабрики
 
@@ -3332,8 +3795,8 @@ PING 10.0.66.11 (10.0.66.11) from 10.0.66.1 : 72(100) bytes of data.
 | -| - | - | - |
 | **Коммутационная фабрика (Hardware & NOS)** | Программная эмуляция vEOS-lab на общем CPU сервера EVE-NG. Совмещение ролей AGW и BGW на Leaf. MTU underlay 9000 (ограничение стенда).        | Аппаратные ЦОД-коммутаторы из реестра Минпромторга с поддержкой EVPN-VXLAN (например, Eltex MES5xxx, YADRO KORNFELD) с штатной NOS вендора. Разделение ролей: Spine, Service Leaf и выделенный Border Leaf. Underlay MTU по максимуму платформы (до 9214) с запасом 50 байт на VXLAN.                          | Аппаратные ЦОД-коммутаторы с EVPN-VXLAN (например, Arista 7050X3 и 7280R3 с EOS, либо Juniper QFX с Junos). Разделение ролей: Spine, Service Leaf и Border Leaf. Underlay MTU по максимуму платформы с запасом 50 байт на VXLAN.                                                       |
 | **Интеграция игровых хостов**               | Хост эмулируется через vEOS. Анонс VIP по eBGP, снятие VIP вручную через `shutdown` Loopback100 и Loopback101.                               | Bare-metal серверы с Linux. Маршрутизация через BIRD2 или FRRouting, сессии eBGP с парой Leaf своей ESI-группы (`bgp listen range` на Leaf для динамических пиров). Снятие VIP автоматическое: L7 health-check (UDP/TCP порт игры) останавливает BIRD или гасит VIP, BFD ускоряет детекцию.                   | Bare-metal серверы, блейд-шасси или облачные инстансы (гибридная схема). Маршрутизация через BIRD2 либо Cilium BGP Control Plane (eBPF) для Kubernetes-нагрузок. Снятие VIP автоматическое: L7 health-check, BFD на стыке Host-Leaf.                                                    |
-| **Внешний периметр (Интернет & BGP)**       | Кольцо из 4 eBGP-узлов на виртуальных роутерах. Анонсирование точных `/32` (допущение стенда). Номера ASN приватные, внутренние ASN видны в AS-path. | Публичный ASN и блоки PI `/24` (анонсы не длиннее `/24`). Стыки с операторами в M9 и других узлах Москвы и Санкт-Петербурга, пиринг на MSK-IX (прежнее название M9-IX) и Piter-IX, транзитные магистральные операторы (например, Ростелеком, Транстелеком). RPKI ROA и ROV (Routinator), `remove-private-as`, prefix-list и max-prefix на каждой сессии. | Публичный ASN и блоки PI `/24`. Стыки в ЦОД Equinix Франкфурта и Амстердама, пиринг на DE-CIX Frankfurt, AMS-IX и LINX, транзитные операторы Tier-1 (например, Arelion, NTT, Lumen). RPKI ROA и ROV, фильтрация по IRR, `remove-private-as`, prefix-list и max-prefix на каждой сессии. |
-| **Безопасность и регуляторика**             | Административный Jump Host развёрнут на CPU коммутатора (`Loopback10` на Leaf1, SSH в VRF TEST). Периметр TEST защищён RM в BGP    | Выделенный bastion-кластер за межсетевым экраном, доступ через ГОСТ VPN-шлюз (например, Континент, С-Терра). MFA, запись сессий (PAM), каталог пользователей (ALD Pro или Active Directory). Изолированный контур в соответствии с ФЗ-152. Терминация SSH на коммутаторах фабрики запрещена.                   | Выделенный bastion или ZTNA-шлюз в DMZ за NGFW (например, Fortinet, Palo Alto). SSO и MFA (Okta или Entra ID), проверка состояния устройства, запись сессий. Соответствие GDPR и ISO 27001. Терминация SSH на коммутаторах фабрики запрещена.                                          |
+| **Внешний периметр (Интернет & BGP)**       | Кольцо из 4 eBGP-узлов на виртуальных роутерах. Анонсирование точных `/32` (допущение стенда). Номера ASN приватные, внутренние ASN видны в AS-path. | Публичный ASN и блоки PI `/24` (анонсы не длиннее `/24`). Стыки с операторами в M9 и других узлах Москвы и Санкт-Петербурга, транзитные магистральные операторы (например, Ростелеком, Транстелеком). RPKI ROA и ROV (Routinator), `remove-private-as`, prefix-list и max-prefix на каждой сессии. | Публичный ASN и блоки PI `/24`. Стыки в ЦОД Equinix Франкфурта и Амстердама, пиринг на DE-CIX Frankfurt, AMS-IX и LINX, транзитные операторы Tier-1 (например, Arelion, NTT, Lumen). RPKI ROA и ROV, фильтрация по IRR, `remove-private-as`, prefix-list и max-prefix на каждой сессии. |
+| **Безопасность и регуляторика**             | Административный Jump Host развёрнут на CPU коммутатора (`Loopback10` на Leaf1, SSH в VRF TEST). Периметр TEST защищён route-map на стыке BGP (RM-TEST-IN/OUT)   | Выделенный bastion-кластер за межсетевым экраном, доступ через ГОСТ VPN-шлюз (например, Континент, С-Терра). MFA, запись сессий (PAM), каталог пользователей (ALD Pro или Active Directory). Изолированный контур в соответствии с ФЗ-152. Терминация SSH на коммутаторах фабрики запрещена.                   | Выделенный bastion или ZTNA-шлюз в DMZ за NGFW (например, Fortinet, Palo Alto). SSO и MFA (Okta или Entra ID), проверка состояния устройства, запись сессий. Соответствие GDPR и ISO 27001. Терминация SSH на коммутаторах фабрики запрещена.                                          |
 
 ### 8.2 Инженерная реализация и устранение лабораторных допущений
 
@@ -3353,7 +3816,7 @@ PING 10.0.66.11 (10.0.66.11) from 10.0.66.1 : 72(100) bytes of data.
 | Аспект                         | Описание |
 | ------------------------------ | --- |
 | Решение                        | На игровых серверах (Bare-Metal ноды под управлением Linux) разворачивается отказоустойчивый стек **BIRD2 + Keepalived**. Серверы строят eBGP-сессии с парой Service Leaf-коммутаторов своей ESI-группы. На Leaf активируется механизм `bgp listen range`, избавляющий от необходимости вручную прописывать сотни хостовых BGP-сессий. |
-| Механизм сходимости (Failover) | Локальный демон на сервере непрерывно опрашивает сокет игрового процесса на Layer 7 (UDP/TCP порт игры). Если игровой сервер зависает, переполняется по CPU или теряет связь с базой данных, скрипт мгновенно отправляет сигнал `SIGKILL` процессу BIRD или опускает вес маршрута. eBGP-сессия Host-Leaf инициирует отзыв префикса (`BGP Withdraw`). Благодаря активированному на линках **BFD (Bidirectional Forwarding Detection)** с таймерами `100ms * 3`, неработающий сервер исключается из Anycast/Unicast пула фабрики и глобального Интернета менее чем за **300 миллисекунд**, полностью предотвращая появление «черных дыр» для трафика игроков. |
+| Механизм сходимости (Failover) | Локальный демон на сервере непрерывно опрашивает сокет игрового процесса на Layer 7 (UDP/TCP порт игры). Если игровой сервер зависает, переполняется по CPU или теряет связь с базой данных, скрипт останавливает процесс BIRD или снижает вес маршрута. eBGP-сессия Host-Leaf инициирует отзыв префикса (`BGP Withdraw`). BFD с расчётными таймерами `100 ms * 3` ускоряет обнаружение отказа на стыке Host-Leaf (расчётная детекция около 300 мс). Скорость распространения withdraw по Интернету зависит от операторов (MRAI, политики обработки) и измеряется отдельно на реальной платформе. В лаборатории таймеры BFD составляют 1000 ms * 3, время переключения не измерялось. |
 
 #### 3. Легитимная маршрутизация в глобальной сети Интернет (Уход от префиксов `/32`)
 
